@@ -15,7 +15,8 @@ struct BalanceTile: View {
                     LinearGradient(colors: [.white.opacity(0.16), .clear], startPoint: .topLeading, endPoint: .center)
                         .clipShape(.rect(cornerRadius: 22))
                 )
-                .overlay(RoundedRectangle(cornerRadius: 22).strokeBorder(Color.black.opacity(0.06), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: 22)
+                    .strokeBorder(Color.black.opacity(Color.isLight(hex: account.colorHex) ? 0.12 : 0.06), lineWidth: 1))
             VStack(alignment: .leading, spacing: 1) {
                 Text(account.name)
                     .font(.outfit(13, .semibold))
@@ -37,8 +38,8 @@ struct BalanceTile: View {
                 .padding(.trailing, 11)
                 .padding(.bottom, 8)
         }
-        .foregroundStyle(.white)
-        .shadow(color: .black.opacity(0.22), radius: 1, y: 1)
+        .foregroundStyle(Color.tileText(hex: account.colorHex))
+        .shadow(color: .black.opacity(Color.isLight(hex: account.colorHex) ? 0 : 0.22), radius: 1, y: 1)
         .frame(width: 88, height: 80)
         .scaleEffect(0.95)
         .accessibilityElement(children: .ignore)

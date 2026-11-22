@@ -139,7 +139,7 @@ struct LoansView: View {
                 .overlay(
                     Text(String(a.name.prefix(1)).uppercased())
                         .font(.outfit(15, .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.tileText(hex: a.colorHex))
                 )
             VStack(alignment: .leading, spacing: 1) {
                 Text(a.name).font(.outfit(15, .semibold)).lineLimit(1)

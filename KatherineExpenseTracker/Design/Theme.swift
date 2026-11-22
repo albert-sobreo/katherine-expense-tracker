@@ -31,6 +31,20 @@ extension Color {
                   blue: Double(v & 0xFF) / 255,
                   opacity: 1)
     }
+
+    /// True for pale tile colors (white, silver, gold) that need dark text instead of white.
+    static func isLight(hex: String) -> Bool {
+        var s = hex.trimmingCharacters(in: .whitespaces)
+        if s.hasPrefix("#") { s.removeFirst() }
+        let v = UInt64(s, radix: 16) ?? 0
+        let r = Double((v >> 16) & 0xFF) / 255, g = Double((v >> 8) & 0xFF) / 255, b = Double(v & 0xFF) / 255
+        return 0.299 * r + 0.587 * g + 0.114 * b > 0.66
+    }
+
+    /// Text color for a tile of this color: near-black on pale tiles, white otherwise.
+    static func tileText(hex: String) -> Color {
+        isLight(hex: hex) ? Color(hex: "#1C1917") : .white
+    }
 }
 
 extension Font {

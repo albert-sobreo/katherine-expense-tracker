@@ -44,7 +44,7 @@ struct AccountForm: View {
         switch type {
         case .bank: BankPreset.all
         case .payee: BankPreset.payees
-        case .loan: BankPreset.loanColors
+        case .loan: BankPreset.loanColors + BankPreset.cardColors.filter { c in !BankPreset.loanColors.contains { $0.hex == c.hex } }
         }
     }
 
@@ -76,6 +76,7 @@ struct AccountForm: View {
                             .padding(.horizontal, 4)
                     }
                     presetGrid(p)
+                    if !isLoan { colorGrid(p) }
                     if editing != nil { deleteButton(p) }
                 }
                 .padding(.horizontal, 16)
@@ -391,15 +392,18 @@ struct AccountForm: View {
             .padding(.horizontal, 4)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
                 ForEach(presets) { preset in
-                    let on = pickedPreset == preset
+                    let on = pickedPreset == preset && colorHex == preset.hex
                     Button { pick(preset) } label: {
                         VStack(spacing: 5) {
                             RoundedRectangle(cornerRadius: 13)
                                 .fill(Color(hex: preset.hex))
+                                .overlay(RoundedRectangle(cornerRadius: 13)
+                                    .strokeBorder(Color.black.opacity(Color.isLight(hex: preset.hex) ? 0.12 : 0), lineWidth: 1))
                                 .frame(width: 44, height: 44)
                                 .overlay {
                                     if on {
-                                        Image(systemName: "checkmark").font(.system(size: 16, weight: .bold)).foregroundStyle(.white)
+                                        Image(systemName: "checkmark").font(.system(size: 16, weight: .bold))
+                                            .foregroundStyle(Color.tileText(hex: preset.hex))
                                     }
                                 }
                                 .padding(on ? 3 : 0)
@@ -413,6 +417,54 @@ struct AccountForm: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(preset.name)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            .padding(.vertical, 14).padding(.horizontal, 10)
+            .background(p.card, in: .rect(cornerRadius: 18))
+        }
+    }
+
+    /// Plain colors (gold, silver, white, card finishes). Changes only the tile color, keeps the name.
+    private func colorGrid(_ p: Palette) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                SectionLabel("Color")
+                Spacer()
+                Text("Keeps the name").font(.outfit(12)).foregroundStyle(p.muted)
+            }
+            .padding(.horizontal, 4)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
+                ForEach(BankPreset.cardColors) { c in
+                    let on = colorHex == c.hex
+                    Button { colorHex = c.hex } label: {
+                        VStack(spacing: 5) {
+                            RoundedRectangle(cornerRadius: 13)
+                                .fill(Color(hex: c.hex))
+                                .overlay(
+                                    LinearGradient(colors: [.white.opacity(0.22), .clear], startPoint: .topLeading, endPoint: .center)
+                                        .clipShape(.rect(cornerRadius: 13))
+                                )
+                                .overlay(RoundedRectangle(cornerRadius: 13)
+                                    .strokeBorder(Color.black.opacity(Color.isLight(hex: c.hex) ? 0.12 : 0), lineWidth: 1))
+                                .frame(width: 44, height: 44)
+                                .overlay {
+                                    if on {
+                                        Image(systemName: "checkmark").font(.system(size: 16, weight: .bold))
+                                            .foregroundStyle(Color.tileText(hex: c.hex))
+                                    }
+                                }
+                                .padding(on ? 3 : 0)
+                                .overlay(RoundedRectangle(cornerRadius: 15).strokeBorder(on ? p.fg : .clear, lineWidth: 2))
+                            Text(c.name)
+                                .font(.outfit(11, .semibold))
+                                .foregroundStyle(p.muted)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(c.name)
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }

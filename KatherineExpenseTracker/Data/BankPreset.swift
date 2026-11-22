@@ -37,4 +37,21 @@ struct BankPreset: Identifiable, Hashable {
         .init(name: "Blue", hex: "#1D4ED8"), .init(name: "Violet", hex: "#6D28D9"),
         .init(name: "Pink", hex: "#BE185D"), .init(name: "Slate", hex: "#3F3F46"),
     ]
+
+    /// Plain card and tile colors: metals, white, black and common credit card finishes.
+    /// Picking one changes only the color, never the name.
+    static let cardColors: [BankPreset] = [
+        .init(name: "Gold", hex: "#C9A24D"), .init(name: "Rose Gold", hex: "#B76E79"),
+        .init(name: "Silver", hex: "#C3C7CC"), .init(name: "Platinum", hex: "#8A949E"),
+        .init(name: "White", hex: "#F6F5F2"), .init(name: "Pearl", hex: "#E8E2D6"),
+        .init(name: "Titanium", hex: "#5B6068"), .init(name: "Black", hex: "#121212"),
+        .init(name: "Navy", hex: "#1B2A4E"), .init(name: "Royal Blue", hex: "#2547A8"),
+        .init(name: "Sky", hex: "#4BA3E3"), .init(name: "Teal", hex: "#0F766E"),
+        .init(name: "Emerald", hex: "#0E6B4F"), .init(name: "Lime", hex: "#65A30D"),
+        .init(name: "Burgundy", hex: "#6D1A36"), .init(name: "Red", hex: "#C8102E"),
+        .init(name: "Orange", hex: "#EA580C"), .init(name: "Amber", hex: "#D97706"),
+        .init(name: "Pink", hex: "#DB2777"), .init(name: "Lavender", hex: "#A78BFA"),
+        .init(name: "Purple", hex: "#5B21B6"), .init(name: "Mauve", hex: "#6B5B6E"),
+        .init(name: "Bronze", hex: "#8C5A2B"), .init(name: "Graphite", hex: "#3F3F46"),
+    ]
 }

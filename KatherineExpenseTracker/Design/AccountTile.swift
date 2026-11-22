@@ -26,7 +26,8 @@ struct AccountTile: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 22)
-                        .strokeBorder(selected ? Color.white.opacity(0.65) : Color.black.opacity(0.06), lineWidth: selected ? 2 : 1)
+                        .strokeBorder(selected ? Color.white.opacity(0.65) : Color.black.opacity(Color.isLight(hex: colorHex) ? 0.12 : 0.06),
+                                      lineWidth: selected ? 2 : 1)
                 )
             if let balance {
                 let sub = loanStatus ?? [isCredit ? "Credit" : nil, last4.isEmpty ? nil : "•• \(last4)"]
@@ -68,8 +69,8 @@ struct AccountTile: View {
                     .padding(.bottom, 8)
             }
         }
-        .foregroundStyle(.white)
-        .shadow(color: .black.opacity(0.22), radius: 1, y: 1)
+        .foregroundStyle(Color.tileText(hex: colorHex))
+        .shadow(color: .black.opacity(Color.isLight(hex: colorHex) ? 0 : 0.22), radius: 1, y: 1)
         .frame(width: width, height: height)
         .shadow(color: selected ? color.opacity(0.55) : .clear, radius: 12, y: 10)
         .scaleEffect(selected ? 1 : 0.95)
