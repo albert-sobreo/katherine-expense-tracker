@@ -14,6 +14,10 @@ import SwiftData
         }
     }()
 
+    init() {
+        FontRegistry.registerBundledFonts()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

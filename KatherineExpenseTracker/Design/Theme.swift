@@ -32,14 +32,20 @@ extension Color {
 }
 
 extension Font {
-    /// Outfit for all text. Falls back to the system font until the font files are bundled.
+    /// Outfit for all text. One variable font file, so any weight works.
     static func outfit(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         .custom("Outfit", size: size).weight(weight)
     }
 
-    /// Barlow Condensed for all numbers. Falls back to the system font until the font files are bundled.
+    /// Barlow Condensed for all numbers. Bundled in Medium, SemiBold and Bold.
     static func barlow(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
-        .custom("Barlow Condensed", size: size).weight(weight)
+        let name: String
+        switch weight {
+        case .bold, .heavy, .black: name = "BarlowCondensed-Bold"
+        case .semibold: name = "BarlowCondensed-SemiBold"
+        default: name = "BarlowCondensed-Medium"
+        }
+        return .custom(name, size: size)
     }
 }
 
