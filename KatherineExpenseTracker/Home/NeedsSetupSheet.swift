@@ -16,11 +16,11 @@ struct NeedsSetupSheet: View {
         let p = Palette.of(scheme)
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(readiness.isReady ? "All set" : "Add accounts first")
+                Text(readiness.isReady ? "All set" : "Add an account first")
                     .font(.outfit(24, .bold))
                 Text(readiness.isReady
                      ? "You can log your first entry now."
-                     : "Every entry goes from one account to another, so you need both sides first.")
+                     : "Add one of your own accounts, like GCash or Cash, so entries have somewhere to come from.")
                     .font(.outfit(15))
                     .foregroundStyle(p.muted)
             }
@@ -30,11 +30,6 @@ struct NeedsSetupSheet: View {
                             title: "One of your accounts",
                             detail: "Where money comes from or goes into, like GCash or Cash.",
                             action: "Add") { formOwner = .init(person: Setup.me(in: context)) }
-                Divider().overlay(p.line).padding(.leading, 52)
-                requirement(p, done: readiness.hasOtherAccount,
-                            title: "Someone on the other side",
-                            detail: "A payee like Meralco, or a person like Mama.",
-                            action: "Add") { formOwner = .init(person: nil) }
             }
             .background(p.card, in: .rect(cornerRadius: 18))
 
@@ -45,7 +40,7 @@ struct NeedsSetupSheet: View {
         .padding(.top, 28)
         .padding(.bottom, 12)
         .background(p.bg)
-        .presentationDetents([.height(460)])
+        .presentationDetents([.height(360)])
         .presentationDragIndicator(.visible)
         .sheet(item: $formOwner) { choice in AccountForm(owner: choice.person) }
     }
