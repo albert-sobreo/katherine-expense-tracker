@@ -20,6 +20,19 @@ struct EntryView: View {
     @State private var toast: String?
     @State private var showForm = false
     @FocusState private var amountFocused: Bool
+    /// Width of the typed amount at full size, and the width the field has. Used to shrink the amount to fit.
+    @State private var amountNaturalWidth: CGFloat = 0
+    @State private var amountFieldWidth: CGFloat = 0
+
+    private static let amountMaxSize: CGFloat = 100
+    private static let amountMinSize: CGFloat = 40
+
+    /// Like the Phone app: full size while it fits, then shrinks smoothly with the width, never below the minimum.
+    private var amountSize: CGFloat {
+        guard amountNaturalWidth > 0, amountFieldWidth > 0 else { return Self.amountMaxSize }
+        let fit = Self.amountMaxSize * (amountFieldWidth - 8) / amountNaturalWidth
+        return min(Self.amountMaxSize, max(Self.amountMinSize, fit))
+    }
 
     private var groups: [RailGroup] { RailGroup.build(people: people, accounts: accounts) }
 
@@ -118,7 +131,7 @@ struct EntryView: View {
 
     private var hero: some View {
         let dark = scheme == .dark
-        let size: CGFloat = amountText.count <= 5 ? 100 : (amountText.count <= 7 ? 80 : 62)
+        let size = amountSize
         return VStack(spacing: 6) {
             Text(kind.rawValue.uppercased())
                 .font(.outfit(11, .semibold))
@@ -140,6 +153,16 @@ struct EntryView: View {
                     .lineLimit(1)
                     .decimalPad()
                     .focused($amountFocused)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { amountFieldWidth = $0 }
+                    .background {
+                        // Same text at full size, unconstrained, only to measure how wide it wants to be.
+                        Text(amountText.isEmpty ? "0" : amountText)
+                            .font(.barlow(Self.amountMaxSize, .semibold))
+                            .monospacedDigit()
+                            .fixedSize()
+                            .hidden()
+                            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { amountNaturalWidth = $0 }
+                    }
                     .padding(.horizontal, 30)
                     .onChange(of: amountText) { _, new in
                         let clean = Self.sanitize(new)
@@ -148,7 +171,7 @@ struct EntryView: View {
                     .accessibilityLabel("Amount in pesos")
             }
             .frame(height: 110)
-            .animation(.easeOut(duration: 0.12), value: size)
+            .animation(.easeOut(duration: 0.1), value: size)
 
             if showNote {
                 TextField("", text: $note, prompt: Text("Note").foregroundStyle(.white.opacity(0.4)))
