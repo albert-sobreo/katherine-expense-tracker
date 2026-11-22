@@ -89,6 +89,15 @@ struct PrimaryButton: View {
 }
 
 extension View {
+    /// Decimal pad on iPhone; ignored on Mac.
+    func decimalPad() -> some View {
+        #if os(iOS)
+        return self.keyboardType(.decimalPad)
+        #else
+        return self
+        #endif
+    }
+
     /// Number pad on iPhone; ignored on Mac.
     func numberPad() -> some View {
         #if os(iOS)

@@ -83,11 +83,11 @@ struct HomeView: View {
             AccountSetupPage(onDone: { showAccounts = false })
                 .presentationDragIndicator(.visible)
         }
-        .sheet(isPresented: $showEntry) {
-            Text("The entry screen is built next.")
-                .font(.outfit(15))
-                .presentationDetents([.height(200)])
-        }
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showEntry) { EntryView() }
+        #else
+        .sheet(isPresented: $showEntry) { EntryView().frame(minWidth: 420, minHeight: 760) }
+        #endif
     }
 
     private func newEntry() {
