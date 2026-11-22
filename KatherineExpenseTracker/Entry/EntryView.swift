@@ -4,6 +4,9 @@ import SwiftData
 /// The one-screen entry: amount hero, Expense / Income / Transfer, two account rails, date wheel, Save & new.
 /// Built to be as fast as typing a spreadsheet row: after saving, the amount clears and the selections stay.
 struct EntryView: View {
+    /// The entry to edit. Nil logs new ones with Save & new.
+    var editing: Entry? = nil
+
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
@@ -18,8 +21,10 @@ struct EntryView: View {
     @State private var toID: PersistentIdentifier?
     @State private var date = Date.now
     @State private var toast: String?
-    @State private var showForm = false
+    @State private var formChoice: AccountSetupPage.OwnerChoice?
     @FocusState private var amountFocused: Bool
+    @State private var skipDefaults = false
+    @State private var confirmDelete = false
     /// Width of the typed amount at full size, and the width the field has. Used to shrink the amount to fit.
     @State private var amountNaturalWidth: CGFloat = 0
     @State private var amountFieldWidth: CGFloat = 0
@@ -35,6 +40,14 @@ struct EntryView: View {
     }
 
     private var groups: [RailGroup] { RailGroup.build(people: people, accounts: accounts) }
+    private var groupsWithPayees: [RailGroup] { RailGroup.build(people: people, accounts: accounts, withPayees: true) }
+
+    /// Payees show only where money leaves to them (Paid to) or comes from them (Received from).
+    private var fromGroups: [RailGroup] { kind == .income ? groupsWithPayees : groups }
+    /// Paid to never lists Kath's own accounts: paying yourself is a transfer, not an expense.
+    private var toGroups: [RailGroup] {
+        kind == .expense ? groupsWithPayees.filter { $0.label != "Mine" } : groups
+    }
 
     /// Kath's own accounts, most-used first.
     private var mine: [Account] { groups.first { $0.label == "Mine" }?.accounts ?? [] }
@@ -69,8 +82,12 @@ struct EntryView: View {
                     header(p)
                     hero
                     kindSwitch(p)
-                    AccountRail(label: labels.from, groups: groups, selection: $fromID) { showForm = true }
-                    AccountRail(label: labels.to, groups: groups, selection: $toID) { showForm = true }
+                    AccountRail(label: labels.from, groups: fromGroups, selection: $fromID) {
+                        formChoice = .init(person: nil, payee: kind == .income)
+                    }
+                    AccountRail(label: labels.to, groups: toGroups, selection: $toID) {
+                        formChoice = .init(person: nil, payee: kind == .expense)
+                    }
                     dateCard(p)
                 }
                 .padding(.horizontal, 16)
@@ -88,7 +105,7 @@ struct EntryView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Close")
-                PrimaryButton(title: "Save & new", enabled: canSave, action: save)
+                PrimaryButton(title: editing == nil ? "Save & new" : "Save", enabled: canSave, action: save)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -107,23 +124,59 @@ struct EntryView: View {
                     .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .sheet(isPresented: $showForm) { AccountForm(owner: nil) }
+        .sheet(item: $formChoice) { choice in AccountForm(owner: choice.person, payee: choice.payee) }
         .onAppear {
-            applyDefaults()
-            amountFocused = true
+            if let editing {
+                load(editing)
+            } else {
+                applyDefaults()
+                amountFocused = true
+            }
         }
-        .onChange(of: kind) { applyDefaults() }
+        .onChange(of: kind) {
+            if skipDefaults {
+                skipDefaults = false
+                return
+            }
+            applyDefaults()
+        }
+        .confirmationDialog("Delete this entry?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                if let editing { context.delete(editing) }
+                try? context.save()
+                dismiss()
+            }
+        } message: {
+            Text("Balances update right away.")
+        }
     }
 
     // MARK: Pieces
 
     private func header(_ p: Palette) -> some View {
         HStack {
-            Text("New entry").font(.outfit(17, .bold))
+            Text(editing == nil ? "New entry" : "Edit entry").font(.outfit(17, .bold))
             Spacer()
-            Text(date.formatted(.dateTime.month(.abbreviated).day()))
-                .font(.barlow(17, .medium))
-                .foregroundStyle(p.muted)
+            if editing != nil {
+                Button { confirmDelete = true } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(Color(hex: "#DC2626"))
+                        .frame(width: 36, height: 36)
+                        .background(p.chip, in: .circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Delete entry")
+                .padding(.trailing, 6)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(date.formatted(.dateTime.month(.abbreviated)).uppercased())
+                    .font(.outfit(13, .semibold))
+                    .tracking(1)
+                Text(date.formatted(.dateTime.day()))
+                    .font(.barlow(17, .medium))
+            }
+            .foregroundStyle(p.muted)
         }
         .padding(.horizontal, 4)
         .frame(height: 40)
@@ -197,10 +250,10 @@ struct EntryView: View {
         .frame(minHeight: 196)
         .background {
             ZStack {
-                Color(hex: "#18181B")
-                RadialGradient(colors: [Color(hex: dark ? "#52525B" : "#71717A").opacity(0.55), .clear],
+                Color(hex: "#1D161E")
+                RadialGradient(colors: [Color(hex: dark ? "#594C5B" : "#79697B").opacity(0.55), .clear],
                                center: .topTrailing, startRadius: 0, endRadius: 260)
-                RadialGradient(colors: [Color(hex: "#3F3F46").opacity(0.6), .clear],
+                RadialGradient(colors: [Color(hex: "#463947").opacity(0.6), .clear],
                                center: .bottomLeading, startRadius: 0, endRadius: 220)
             }
             .clipShape(.rect(cornerRadius: 28))
@@ -274,7 +327,7 @@ struct EntryView: View {
 
     // MARK: Logic
 
-    /// Keeps digits, one dot, and at most two decimals.
+    /// Keeps digits, one dot, and at most two decimals, with commas every three digits: "12,500.75".
     static func sanitize(_ s: String) -> String {
         var out = ""
         var seenDot = false
@@ -293,7 +346,14 @@ struct EntryView: View {
                 out.append(ch)
             }
         }
-        return String(out.prefix(12))
+        let parts = out.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+        let whole = String(parts.first ?? "").prefix(9)
+        var grouped = ""
+        for (i, ch) in whole.enumerated() {
+            if i > 0 && (whole.count - i) % 3 == 0 { grouped.append(",") }
+            grouped.append(ch)
+        }
+        return parts.count > 1 ? grouped + "." + String(parts[1]) : grouped
     }
 
     private func applyDefaults() {
@@ -316,8 +376,34 @@ struct EntryView: View {
         return accounts.first { $0.persistentModelID == id }
     }
 
+    /// Fills the screen from the entry being edited.
+    private func load(_ e: Entry) {
+        if e.kind != kind {
+            skipDefaults = true
+            kind = e.kind
+        }
+        let c = e.amountCentavos
+        amountText = Self.sanitize(c % 100 == 0 ? String(c / 100) : String(format: "%.2f", Double(c) / 100))
+        note = e.note
+        showNote = !e.note.isEmpty
+        fromID = e.from?.persistentModelID
+        toID = e.to?.persistentModelID
+        date = e.date
+    }
+
     private func save() {
         guard canSave else { return }
+        if let editing {
+            editing.amountCentavos = centavos
+            editing.kind = kind
+            editing.date = date
+            editing.from = account(fromID)
+            editing.to = account(toID)
+            editing.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+            try? context.save()
+            dismiss()
+            return
+        }
         let amount = centavos
         let entry = Entry(amountCentavos: amount, kind: kind, date: date,
                           from: account(fromID), to: account(toID),

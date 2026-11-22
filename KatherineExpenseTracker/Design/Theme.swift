@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Zinc palette from the design canvas, light and dark.
+/// Tailwind mauve palette (a gray with a soft purple tint), light and dark.
 struct Palette {
     let bg: Color
     let card: Color
@@ -11,10 +11,12 @@ struct Palette {
 
     static func of(_ scheme: ColorScheme) -> Palette {
         scheme == .dark
-            ? Palette(bg: Color(hex: "#09090B"), card: Color(hex: "#18181B"), fg: Color(hex: "#FAFAFA"),
-                      muted: Color(hex: "#A1A1AA"), chip: Color(hex: "#27272A"), line: Color(hex: "#3F3F46"))
-            : Palette(bg: Color(hex: "#F4F4F5"), card: Color(hex: "#FFFFFF"), fg: Color(hex: "#09090B"),
-                      muted: Color(hex: "#71717A"), chip: Color(hex: "#E4E4E7"), line: Color(hex: "#D4D4D8"))
+            // mauve-950 bg, -900 card, -50 text, -400 muted, -800 chip, -700 line
+            ? Palette(bg: Color(hex: "#0C090C"), card: Color(hex: "#1D161E"), fg: Color(hex: "#FAFAFA"),
+                      muted: Color(hex: "#A89EA9"), chip: Color(hex: "#2A212C"), line: Color(hex: "#463947"))
+            // mauve-100 bg, white card, -950 text, -500 muted, -200 chip, -300 line
+            : Palette(bg: Color(hex: "#F3F1F3"), card: Color(hex: "#FFFFFF"), fg: Color(hex: "#0C090C"),
+                      muted: Color(hex: "#79697B"), chip: Color(hex: "#E7E4E7"), line: Color(hex: "#D7D0D7"))
     }
 }
 

@@ -2,13 +2,16 @@ import SwiftUI
 import SwiftData
 
 /// One owner's accounts inside a rail. Mine comes first, then other people, then accounts with no owner.
+/// Payees, when the rail shows them, come first as their own group.
 struct RailGroup: Identifiable {
     let id: String
     let label: String
     let accounts: [Account]
 
     /// Groups every account by owner, most-used first inside each group.
-    static func build(people: [Person], accounts: [Account]) -> [RailGroup] {
+    /// `withPayees` adds a Payees group in front (for Paid to and Received from).
+    static func build(people: [Person], accounts all: [Account], withPayees: Bool = false) -> [RailGroup] {
+        let accounts = all.filter { !$0.isPayee }
         func usage(_ a: Account) -> Int { (a.outgoing?.count ?? 0) + (a.incoming?.count ?? 0) }
         func sorted(_ list: [Account]) -> [Account] {
             list.sorted { usage($0) != usage($1) ? usage($0) > usage($1) : $0.sortOrder < $1.sortOrder }
@@ -23,14 +26,51 @@ struct RailGroup: Identifiable {
         }
         let loose = accounts.filter { $0.owner == nil }
         if !loose.isEmpty { groups.append(RailGroup(id: "others", label: "Others", accounts: sorted(loose))) }
+        if withPayees {
+            let payees = all.filter(\.isPayee)
+            if !payees.isEmpty { groups.insert(RailGroup(id: "payees", label: "Payees", accounts: sorted(payees)), at: 0) }
+        }
         return groups
+    }
+
+    /// The owner of the first tile that is mostly visible at the left edge of a tile row. When the row is
+    /// scrolled all the way to the end, the last group, so a short last group still gets its name.
+    /// Assumes 13pt leading padding, 88pt tiles and 15pt dividers.
+    static func owner(in groups: [RailGroup], scroll: RailScroll) -> RailGroup? {
+        guard let last = groups.last else { return nil }
+        let lead: CGFloat = 13, tile: CGFloat = 88, divider: CGFloat = 15
+        let scrollable = scroll.content > scroll.width + 1
+        if scrollable, scroll.x > 0, scroll.x >= scroll.content - scroll.width - 1 { return last }
+        let probe = scroll.x + tile * 0.6
+        var start = lead
+        var current = groups[0]
+        for (i, g) in groups.enumerated() {
+            if i > 0 { start += divider }
+            if start <= probe { current = g } else { break }
+            start += CGFloat(g.accounts.count) * tile
+        }
+        return current
     }
 }
 
-private struct RailScroll: Equatable {
+/// Horizontal scroll position of a tile row, for working out which owner is in view.
+struct RailScroll: Equatable {
     var x: CGFloat = 0
     var width: CGFloat = 0
     var content: CGFloat = 0
+}
+
+extension View {
+    /// Keeps `scroll` in sync with this horizontal ScrollView's position.
+    func trackRailScroll(_ scroll: Binding<RailScroll>) -> some View {
+        onScrollGeometryChange(for: RailScroll.self) { geo in
+            RailScroll(x: geo.contentOffset.x + geo.contentInsets.leading,
+                       width: geo.containerSize.width,
+                       content: geo.contentSize.width)
+        } action: { _, new in
+            scroll.wrappedValue = new
+        }
+    }
 }
 
 /// "Pay from" / "Paid to" row: label, owner name that follows the scroll, selected account on the right,
@@ -52,20 +92,7 @@ struct AccountRail: View {
         groups.lazy.flatMap(\.accounts).first { $0.persistentModelID == selection }
     }
 
-    /// The owner whose tiles sit about a third of the way into the visible row.
-    private var visibleOwner: String {
-        guard let last = groups.last else { return "" }
-        if scroll.content > 0, scroll.x >= scroll.content - scroll.width - 1, scroll.x > 0 { return last.label }
-        let probe = scroll.x + scroll.width * 0.35
-        var start = lead
-        var current = groups[0].label
-        for (i, g) in groups.enumerated() {
-            if i > 0 { start += divider }
-            if start <= probe { current = g.label } else { break }
-            start += CGFloat(g.accounts.count) * tile
-        }
-        return current
-    }
+    private var visibleOwner: String { RailGroup.owner(in: groups, scroll: scroll)?.label ?? "" }
 
     var body: some View {
         let p = Palette.of(scheme)
@@ -113,7 +140,7 @@ struct AccountRail: View {
                                 AccountTile(name: a.name, last4: a.last4, colorHex: a.colorHex, selected: on)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(g.label == "Mine" || g.label == "Others" ? a.name : "\(g.label)'s \(a.name)")
+                            .accessibilityLabel(["Mine", "Others", "Payees"].contains(g.label) ? a.name : "\(g.label)'s \(a.name)")
                             .accessibilityAddTraits(on ? .isSelected : [])
                         }
                     }
@@ -121,27 +148,23 @@ struct AccountRail: View {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(p.muted)
-                            .frame(width: 64, height: 80)
+                            .frame(width: tile, height: 80)
                             .background(p.chip, in: .rect(cornerRadius: 22))
-                            .scaleEffect(0.94)
+                            .scaleEffect(0.95)
                     }
                     .buttonStyle(.plain)
-                    .padding(.leading, 6)
                     .accessibilityLabel("New account")
                 }
                 .padding(.horizontal, lead)
                 .padding(.vertical, 12)
             }
             .scrollIndicators(.hidden)
+            // The selected tile's glow spills past the row; the row spans the full screen width,
+            // so turning clipping off only lets the glow show, not stray tiles.
+            .scrollClipDisabled()
             .padding(.horizontal, -16)
             .padding(.vertical, -12)
-            .onScrollGeometryChange(for: RailScroll.self) { geo in
-                RailScroll(x: geo.contentOffset.x + geo.contentInsets.leading,
-                           width: geo.containerSize.width,
-                           content: geo.contentSize.width)
-            } action: { _, new in
-                scroll = new
-            }
+            .trackRailScroll($scroll)
         }
     }
 }

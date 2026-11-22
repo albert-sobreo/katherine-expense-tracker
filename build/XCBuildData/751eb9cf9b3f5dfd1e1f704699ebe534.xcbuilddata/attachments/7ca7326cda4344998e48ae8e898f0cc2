@@ -1,0 +1,121 @@
+{
+  "" : {
+    "const-values" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/KatherineExpenseTracker-primary.swiftconstvalues",
+    "dependencies" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/KatherineExpenseTracker-primary.d",
+    "diagnostics" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/KatherineExpenseTracker-primary.dia",
+    "emit-module-dependencies" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/KatherineExpenseTracker-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/KatherineExpenseTracker-primary-emit-module.dia",
+    "pch" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/KatherineExpenseTracker-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/KatherineExpenseTracker-primary.swiftdeps"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Accounts/AccountForm.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountForm.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountForm.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountForm.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Accounts/AccountsByOwner.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountsByOwner.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountsByOwner.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountsByOwner.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Accounts/PersonSheet.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/PersonSheet.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/PersonSheet.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/PersonSheet.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/ContentView.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/ContentView.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/ContentView.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/ContentView.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Data/BankPreset.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/BankPreset.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/BankPreset.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/BankPreset.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Data/Money.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Money.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Money.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Money.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Data/Setup.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Setup.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Setup.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Setup.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Design/AccountTile.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountTile.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountTile.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountTile.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Design/BalanceTile.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/BalanceTile.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/BalanceTile.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/BalanceTile.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Design/FontRegistry.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/FontRegistry.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/FontRegistry.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/FontRegistry.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Design/Theme.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Theme.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Theme.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Theme.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Entry/AccountRail.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountRail.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountRail.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountRail.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Entry/EntryView.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/EntryView.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/EntryView.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/EntryView.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Home/HomeView.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/HomeView.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/HomeView.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/HomeView.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Home/NeedsSetupSheet.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/NeedsSetupSheet.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/NeedsSetupSheet.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/NeedsSetupSheet.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Models/Account.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Account.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Account.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Account.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Models/Entry.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Entry.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Entry.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Entry.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Models/Person.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Person.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Person.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/Person.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/MyApp.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/MyApp.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/MyApp.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/MyApp.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Onboarding/AccountSetupPage.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountSetupPage.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountSetupPage.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/AccountSetupPage.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/KatherineExpenseTracker/Onboarding/OnboardingFlow.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/OnboardingFlow.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/OnboardingFlow.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/OnboardingFlow.o"
+  },
+  "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/albert/Documents/Programming/KatherineExpenseTracker/build/KatherineExpenseTracker.build/Release/KatherineExpenseTracker.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  }
+}

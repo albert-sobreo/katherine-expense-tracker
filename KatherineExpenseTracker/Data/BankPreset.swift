@@ -17,4 +17,16 @@ struct BankPreset: Identifiable, Hashable {
         .init(name: "SeaBank", hex: "#F15A22"), .init(name: "ShopeePay", hex: "#EE4D2D"),
         .init(name: "Coins.ph", hex: "#1E5BF6"), .init(name: "Cash", hex: "#3F3F46"),
     ]
+
+    /// Common PH billers, stores and income sources for payees.
+    static let payees: [BankPreset] = [
+        .init(name: "Meralco", hex: "#F26522"), .init(name: "Maynilad", hex: "#0072BC"),
+        .init(name: "Manila Water", hex: "#00A9E0"), .init(name: "PLDT", hex: "#E4002B"),
+        .init(name: "Globe", hex: "#0057B8"), .init(name: "Smart", hex: "#00A651"),
+        .init(name: "Converge", hex: "#6A2C91"), .init(name: "Grab", hex: "#00B14F"),
+        .init(name: "Foodpanda", hex: "#D70F64"), .init(name: "Shopee", hex: "#EE4D2D"),
+        .init(name: "Lazada", hex: "#0F146D"), .init(name: "SM", hex: "#0067B1"),
+        .init(name: "7-Eleven", hex: "#008163"), .init(name: "Mercury Drug", hex: "#E31B23"),
+        .init(name: "Salary", hex: "#44403C"), .init(name: "Other", hex: "#3F3F46"),
+    ]
 }

@@ -20,6 +20,11 @@ final class Account {
     var creditLimitCentavos: Int?
     /// Credit cards only: the day of the month the bill is due.
     var dueDay: Int?
+    /// A payee is someone or something money goes to or comes from that Kath doesn't hold:
+    /// Meralco, Grab, a store, her employer. Payees have no owner, no last 4 and no balance.
+    var isPayee: Bool = false
+    /// Balance when the account was added, in centavos. Negative for what's already owed on a card.
+    var openingCentavos: Int = 0
     var sortOrder: Int = 0
     var createdAt: Date = Date()
 
@@ -36,7 +41,9 @@ final class Account {
         set { kindRaw = newValue.rawValue }
     }
 
-    init(name: String, last4: String = "", colorHex: String, kind: AccountKind = .debit, owner: Person? = nil) {
+    init(name: String, last4: String = "", colorHex: String, kind: AccountKind = .debit,
+         owner: Person? = nil, isPayee: Bool = false) {
+        self.isPayee = isPayee
         self.name = name
         self.last4 = last4
         self.colorHex = colorHex
