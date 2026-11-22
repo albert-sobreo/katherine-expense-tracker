@@ -14,6 +14,8 @@ struct ContentView: View {
                 OnboardingFlow { withAnimation { didFinishOnboarding = true } }
             }
         }
+        // Default for any text that doesn't set its own font, including system controls.
+        .font(.outfit(17))
         .task { Setup.me(in: context) }
     }
 }
