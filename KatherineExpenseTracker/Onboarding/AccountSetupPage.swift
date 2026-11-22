@@ -51,7 +51,7 @@ struct AccountSetupPage: View {
                 VStack(spacing: 6) {
                     PrimaryButton(title: accounts.isEmpty ? "Skip for now" : "Continue", action: onDone)
                     if accounts.isEmpty {
-                        Text("You'll be asked to add them before your first entry.")
+                        Text("You'll be asked to add one of yours before your first entry.")
                             .font(.outfit(12))
                             .foregroundStyle(p.muted)
                     }

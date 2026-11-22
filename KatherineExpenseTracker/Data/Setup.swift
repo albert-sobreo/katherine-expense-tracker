@@ -23,16 +23,14 @@ enum Setup {
         return me
     }
 
-    /// What a new entry needs: one of Kath's accounts to pay from or receive into,
-    /// and someone else's account (a payee or a person) on the other side.
+    /// What a new entry needs: one of Kath's own accounts. Other people's accounts and
+    /// payees are optional and can be added any time.
     struct Readiness {
         let hasMyAccount: Bool
-        let hasOtherAccount: Bool
-        var isReady: Bool { hasMyAccount && hasOtherAccount }
+        var isReady: Bool { hasMyAccount }
 
         init(accounts: [Account]) {
             hasMyAccount = accounts.contains { $0.owner?.isMe == true }
-            hasOtherAccount = accounts.contains { $0.owner != nil && $0.owner?.isMe != true }
         }
     }
 }
