@@ -6,6 +6,8 @@ import SwiftData
 struct EntryView: View {
     /// The entry to edit. Nil logs new ones with Save & new.
     var editing: Entry? = nil
+    /// An earlier entry to repeat: same type, amount, accounts and note, dated today, saved as a new entry.
+    var template: Entry? = nil
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -28,6 +30,7 @@ struct EntryView: View {
     /// Last accounts used per entry type, so the next entry starts where the last one left off.
     @AppStorage("lastAccounts") private var lastAccountsJSON = ""
     @State private var confirmDelete = false
+    @State private var showWheel = false
     /// Width of the typed amount at full size, and the width the field has. Used to shrink the amount to fit.
     @State private var amountNaturalWidth: CGFloat = 0
     @State private var amountFieldWidth: CGFloat = 0
@@ -43,7 +46,10 @@ struct EntryView: View {
     }
 
     private var groups: [RailGroup] { RailGroup.build(people: people, accounts: accounts) }
-    private var groupsWithPayees: [RailGroup] { RailGroup.build(people: people, accounts: accounts, withPayees: true) }
+    /// Payees, then loans, then accounts. Picking a loan here turns the entry into a Transfer.
+    private var groupsWithPayees: [RailGroup] {
+        RailGroup.build(people: people, accounts: accounts, withPayees: true, withLoans: true)
+    }
 
     /// Payees show only where money leaves to them (Paid to) or comes from them (Received from).
     /// Loans show only on Transfer: lending, borrowing and paybacks are transfers to or from a loan tile.
@@ -144,12 +150,24 @@ struct EntryView: View {
         .onAppear {
             if let editing {
                 load(editing)
+            } else if let template {
+                load(template)
+                date = .now
+                amountFocused = true
             } else {
                 applyDefaults()
                 amountFocused = true
             }
         }
         .sensoryFeedback(.success, trigger: savedCount)
+        .onChange(of: toID) { _, id in
+            // Lending to someone from Expense: loans move money, they aren't spending.
+            if kind == .expense, account(id)?.isLoan == true { switchToTransfer() }
+        }
+        .onChange(of: fromID) { _, id in
+            // Borrowing or a payback from Income: same, it's a Transfer.
+            if kind == .income, account(id)?.isLoan == true { switchToTransfer() }
+        }
         .onChange(of: kind) {
             if skipDefaults {
                 skipDefaults = false
@@ -308,38 +326,65 @@ struct EntryView: View {
         .background(p.chip, in: .rect(cornerRadius: 16))
     }
 
+    /// Today / Yesterday / a picked date as chips. The wheel opens only for other days.
     private func dateCard(_ p: Palette) -> some View {
-        let isToday = Calendar.current.isDateInToday(date)
+        let cal = Calendar.current
+        let isToday = cal.isDateInToday(date)
+        let isYesterday = cal.isDateInYesterday(date)
+        let other = !isToday && !isYesterday
         return VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                SectionLabel("Date")
-                Spacer()
-                Button(isToday ? "Today" : "Back to today") {
-                    withAnimation { date = .now }
+            SectionLabel("Date").padding(.horizontal, 4)
+            HStack(spacing: 8) {
+                dateChip("Today", on: isToday, p) {
+                    date = .now
+                    showWheel = false
                 }
-                .buttonStyle(.plain)
-                .font(.outfit(12, .semibold))
-                .foregroundStyle(isToday ? p.muted : p.fg)
-                .disabled(isToday)
+                dateChip("Yesterday", on: isYesterday, p) {
+                    date = cal.date(byAdding: .day, value: -1, to: .now) ?? .now
+                    showWheel = false
+                }
+                dateChip(other ? date.formatted(.dateTime.month(.abbreviated).day().year()) : "Pick date",
+                         on: other || showWheel, p, icon: "calendar") {
+                    withAnimation(.easeOut(duration: 0.2)) { showWheel.toggle() }
+                }
             }
-            .padding(.horizontal, 4)
-
-            #if os(iOS)
-            DatePicker("Date", selection: $date, displayedComponents: .date)
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .frame(maxWidth: .infinity)
-                .frame(height: 108)
-                .clipped()
-                .background(p.card, in: .rect(cornerRadius: 22))
-            #else
-            DatePicker("Date", selection: $date, displayedComponents: .date)
-                .labelsHidden()
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(p.card, in: .rect(cornerRadius: 22))
-            #endif
+            if showWheel {
+                #if os(iOS)
+                DatePicker("Date", selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 140)
+                    .clipped()
+                    .background(p.card, in: .rect(cornerRadius: 22))
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                #else
+                DatePicker("Date", selection: $date, displayedComponents: .date)
+                    .labelsHidden()
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(p.card, in: .rect(cornerRadius: 22))
+                #endif
+            }
         }
+    }
+
+    private func dateChip(_ title: String, on: Bool, _ p: Palette, icon: String? = nil,
+                          action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let icon { Image(systemName: icon).font(.system(size: 13, weight: .semibold)) }
+                Text(title).font(.outfit(14, .semibold)).lineLimit(1)
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: 42)
+            .foregroundStyle(on ? p.bg : p.fg)
+            .background(on ? p.fg : p.card, in: .rect(cornerRadius: 14))
+            .contentShape(.rect)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     // MARK: Logic
@@ -414,6 +459,21 @@ struct EntryView: View {
         case .transfer:
             fromID = ids.first
             toID = ids.count > 1 ? ids[1] : nil
+        }
+    }
+
+    /// Keeps both picks and flips the type to Transfer, with a short note why.
+    private func switchToTransfer() {
+        if kind == .expense, fromID == nil { fromID = mine.first?.persistentModelID }
+        if kind == .income, toID == nil { toID = mine.first?.persistentModelID }
+        skipDefaults = true
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            kind = .transfer
+            toast = "Loans are Transfers, switched for you"
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(.easeOut) { if toast == "Loans are Transfers, switched for you" { toast = nil } }
         }
     }
 

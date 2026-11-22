@@ -21,6 +21,8 @@ struct HomeView: View {
     @State private var showAnalytics = false
     @State private var showBudget = false
     @State private var showLoans = false
+    @State private var showSettings = false
+    @State private var repeating: Entry?
     @AppStorage(Budget.key) private var budget = 0
 
     private static func startOfMonth(_ date: Date) -> Date {
@@ -31,6 +33,25 @@ struct HomeView: View {
     private var totals: MonthTotals { MonthTotals(entries: entries, month: month) }
     private var balanceGroups: [RailGroup] { RailGroup.build(people: people, accounts: accounts) }
     private var loans: [Account] { accounts.filter(\.isLoan) }
+
+    /// The latest 5 entries that differ in type, amount, accounts or note, for "Repeat" on long-press.
+    private var recentTemplates: [Entry] {
+        var seen = Set<String>()
+        var out: [Entry] = []
+        for e in entries {
+            let key = "\(e.kindRaw)|\(e.amountCentavos)|\(e.from?.name ?? "")|\(e.to?.name ?? "")|\(e.note)"
+            if seen.insert(key).inserted { out.append(e) }
+            if out.count == 5 { break }
+        }
+        return out
+    }
+
+    /// Steps the month; never past this month.
+    private func step(_ months: Int) {
+        guard let m = Calendar.current.date(byAdding: .month, value: months, to: month) else { return }
+        if months > 0, m > HomeView.startOfMonth(.now) { return }
+        withAnimation(.easeOut(duration: 0.2)) { month = m }
+    }
     private var hasMyAccount: Bool { Setup.Readiness(accounts: accounts).isReady }
 
     var body: some View {
@@ -41,6 +62,17 @@ struct HomeView: View {
                     header(p)
                     if hasMyAccount {
                         hero(p)
+                            .contentShape(.rect)
+                            .simultaneousGesture(
+                                DragGesture(minimumDistance: 30)
+                                    .onEnded { v in
+                                        // Swipe the totals sideways to change month.
+                                        guard abs(v.translation.width) > abs(v.translation.height) * 1.5,
+                                              abs(v.translation.width) > 60 else { return }
+                                        step(v.translation.width < 0 ? 1 : -1)
+                                    }
+                            )
+                            .sensoryFeedback(.selection, trigger: month)
                     } else {
                         emptyCard(p)
                     }
@@ -66,6 +98,20 @@ struct HomeView: View {
                     .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.28), radius: 14, y: 12)
             }
             .buttonStyle(.plain)
+            .contextMenu {
+                // Long-press: repeat one of the latest entries with today's date.
+                if !recentTemplates.isEmpty {
+                    Section("Repeat") {
+                        ForEach(recentTemplates) { e in
+                            Button {
+                                if hasMyAccount { repeating = e } else { showSetup = true }
+                            } label: {
+                                Text("\(EntriesView.text(for: e).item) · \(Money.peso(e.amountCentavos))")
+                            }
+                        }
+                    }
+                }
+            }
             .padding(.bottom, 18)
         }
         .foregroundStyle(p.fg)
@@ -91,12 +137,16 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showAnalytics) { AnalyticsView(month: month) }
         .fullScreenCover(item: $viewingAccount) { EntriesView(account: $0) }
         .fullScreenCover(isPresented: $showLoans) { LoansView() }
+        .fullScreenCover(isPresented: $showSettings) { SettingsView() }
+        .fullScreenCover(item: $repeating) { EntryView(template: $0) }
         #else
         .sheet(item: $editingEntry) { entry in EntryView(editing: entry).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showSheet) { EntriesView(month: month).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showAnalytics) { AnalyticsView(month: month).frame(minWidth: 420, minHeight: 760) }
         .sheet(item: $viewingAccount) { EntriesView(account: $0).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showLoans) { LoansView().frame(minWidth: 420, minHeight: 760) }
+        .sheet(isPresented: $showSettings) { SettingsView().frame(minWidth: 420, minHeight: 760) }
+        .sheet(item: $repeating) { EntryView(template: $0).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showEntry) { EntryView().frame(minWidth: 420, minHeight: 760) }
         #endif
     }
@@ -137,14 +187,14 @@ struct HomeView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Analytics")
-            Button { showAccounts = true } label: {
-                Image(systemName: "creditcard")
+            Button { showSettings = true } label: {
+                Image(systemName: "gearshape")
                     .font(.system(size: 17, weight: .medium))
                     .frame(width: 40, height: 40)
                     .background(p.chip, in: .circle)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Accounts")
+            .accessibilityLabel("Settings")
         }
         .padding(.horizontal, 16)
         .frame(height: 40)
@@ -276,14 +326,22 @@ struct HomeView: View {
         let total = current.accounts.reduce(0) { $0 + $1.balanceCentavos }
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: 8) {
-                    Text("BALANCES").foregroundStyle(p.muted)
-                    Text(current.label.uppercased())
-                        .foregroundStyle(p.fg)
-                        .contentTransition(.opacity)
-                        .animation(.easeOut(duration: 0.15), value: current.label)
+                Button { showAccounts = true } label: {
+                    HStack(spacing: 8) {
+                        Text("BALANCES").foregroundStyle(p.muted)
+                        Text(current.label.uppercased())
+                            .foregroundStyle(p.fg)
+                            .contentTransition(.opacity)
+                            .animation(.easeOut(duration: 0.15), value: current.label)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(p.muted)
+                    }
+                    .font(.outfit(11, .semibold)).tracking(1.8)
+                    .contentShape(.rect)
                 }
-                .font(.outfit(11, .semibold)).tracking(1.8)
+                .buttonStyle(.plain)
+                .accessibilityLabel("Accounts")
                 Spacer()
                 Text(Money.peso(total))
                     .font(.barlow(16))

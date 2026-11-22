@@ -48,12 +48,10 @@ struct AccountForm: View {
         }
     }
 
-    /// People a loan can be with: everyone but Kath.
-    private var ownerChoices: [Person] { isLoan ? people.filter { !$0.isMe } : people }
 
     private var canSave: Bool {
         let hasName = !name.trimmingCharacters(in: .whitespaces).isEmpty
-        return isPayee ? hasName : (selectedOwner != nil && hasName)
+        return type == .bank ? (selectedOwner != nil && hasName) : hasName
     }
 
     var body: some View {
@@ -63,10 +61,11 @@ struct AccountForm: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if editing == nil { typeSwitch(p) }
-                    if !isPayee {
+                    if type == .bank {
                         ownerRow(p)
-                        if isLoan { directionSwitch(p) } else { kindSwitch(p) }
+                        kindSwitch(p)
                     }
+                    if isLoan { directionSwitch(p) }
                     nameRow(p)
                     if !isPayee { openingRow(p) }
                     if type == .bank && kind == .credit { creditRow(p) }
@@ -100,10 +99,9 @@ struct AccountForm: View {
                 skipTypeReset = true
                 type = .loan
                 colorHex = BankPreset.loanColors[0].hex
-                if selectedOwner?.isMe == true { selectedOwner = nil }
             }
         }
-        .onChange(of: type) { _, new in
+        .onChange(of: type) { _, _ in
             if skipTypeReset {
                 skipTypeReset = false
                 return
@@ -112,15 +110,6 @@ struct AccountForm: View {
             if pickedPreset != nil || name.isEmpty { name = "" }
             pickedPreset = nil
             colorHex = presets[0].hex
-            if new == .loan {
-                if selectedOwner?.isMe == true { selectedOwner = nil }
-                if let person = selectedOwner, name.isEmpty { name = person.name }
-            }
-        }
-        .onChange(of: selectedOwner) { old, new in
-            // A loan is named after the person unless she typed her own name.
-            guard isLoan, let new else { return }
-            if name.isEmpty || name == old?.name { name = new.name }
         }
         .sheet(isPresented: $showPersonSheet) {
             PersonSheet { selectedOwner = $0 }
@@ -205,7 +194,7 @@ struct AccountForm: View {
 
     private func ownerRow(_ p: Palette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel(isLoan ? "With whom" : "Whose account").padding(.horizontal, 4)
+            SectionLabel("Whose account").padding(.horizontal, 4)
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     Button { showPersonSheet = true } label: {
@@ -217,7 +206,7 @@ struct AccountForm: View {
                             .overlay(Capsule().strokeBorder(p.muted, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
                     }
                     .buttonStyle(.plain)
-                    ForEach(ownerChoices) { person in
+                    ForEach(people) { person in
                         let on = selectedOwner?.persistentModelID == person.persistentModelID
                         Button { selectedOwner = person } label: {
                             Text(person.name.uppercased())
@@ -502,7 +491,7 @@ struct AccountForm: View {
         account.isPayee = isPayee
         account.isLoan = isLoan
         if isLoan {
-            account.owner = selectedOwner
+            account.owner = nil
             account.last4 = ""
             account.kind = .debit
             account.openingCentavos = signedOpening
