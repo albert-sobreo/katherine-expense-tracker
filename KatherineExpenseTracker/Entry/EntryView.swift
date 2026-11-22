@@ -25,6 +25,7 @@ struct EntryView: View {
     @State private var toast: String?
     @State private var formChoice: AccountSetupPage.OwnerChoice?
     @FocusState private var amountFocused: Bool
+    @FocusState private var noteFocused: Bool
     @State private var skipDefaults = false
     @State private var savedCount = 0
     /// Last accounts used per entry type, so the next entry starts where the last one left off.
@@ -265,6 +266,7 @@ struct EntryView: View {
 
             if showNote {
                 TextField("", text: $note, prompt: Text("Note").foregroundStyle(.white.opacity(0.4)))
+                    .focused($noteFocused)
                     .font(.outfit(14))
                     .foregroundStyle(.white)
                     .tint(.white)
@@ -272,7 +274,14 @@ struct EntryView: View {
                     .padding(.horizontal, 14).frame(height: 34)
                     .background(.white.opacity(0.1), in: .capsule)
             } else {
-                Button { withAnimation { showNote = true } } label: {
+                Button {
+                    withAnimation { showNote = true }
+                    // Focus once the field exists, so she can type right away.
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(60))
+                        noteFocused = true
+                    }
+                } label: {
                     Label("Add note", systemImage: "text.bubble")
                         .font(.outfit(12, .semibold))
                         .foregroundStyle(.white.opacity(0.75))
