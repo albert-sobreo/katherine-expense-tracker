@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// First launch: one welcome page, then account and person setup. Both can be skipped.
 struct OnboardingFlow: View {
