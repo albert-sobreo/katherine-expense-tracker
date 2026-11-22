@@ -24,6 +24,9 @@ struct EntryView: View {
     @State private var formChoice: AccountSetupPage.OwnerChoice?
     @FocusState private var amountFocused: Bool
     @State private var skipDefaults = false
+    @State private var savedCount = 0
+    /// Last accounts used per entry type, so the next entry starts where the last one left off.
+    @AppStorage("lastAccounts") private var lastAccountsJSON = ""
     @State private var confirmDelete = false
     /// Width of the typed amount at full size, and the width the field has. Used to shrink the amount to fit.
     @State private var amountNaturalWidth: CGFloat = 0
@@ -43,7 +46,7 @@ struct EntryView: View {
     private var groupsWithPayees: [RailGroup] { RailGroup.build(people: people, accounts: accounts, withPayees: true) }
 
     /// Payees show only where money leaves to them (Paid to) or comes from them (Received from).
-    private var fromGroups: [RailGroup] { kind == .income ? groupsWithPayees : groups }
+    private var fromGroups: [RailGroup] { kind == .income ? groupsWithPayees.filter { $0.label != "Mine" } : groups }
     /// Paid to never lists Kath's own accounts: paying yourself is a transfer, not an expense.
     private var toGroups: [RailGroup] {
         kind == .expense ? groupsWithPayees.filter { $0.label != "Mine" } : groups
@@ -133,6 +136,7 @@ struct EntryView: View {
                 amountFocused = true
             }
         }
+        .sensoryFeedback(.success, trigger: savedCount)
         .onChange(of: kind) {
             if skipDefaults {
                 skipDefaults = false
@@ -356,7 +360,36 @@ struct EntryView: View {
         return parts.count > 1 ? grouped + "." + String(parts[1]) : grouped
     }
 
+    private struct LastPair: Codable {
+        var from: PersistentIdentifier?
+        var to: PersistentIdentifier?
+    }
+
+    private var lastAccounts: [String: LastPair] {
+        guard let data = lastAccountsJSON.data(using: .utf8) else { return [:] }
+        return (try? JSONDecoder().decode([String: LastPair].self, from: data)) ?? [:]
+    }
+
+    private func rememberAccounts() {
+        var all = lastAccounts
+        all[kind.rawValue] = LastPair(from: fromID, to: toID)
+        if let data = try? JSONEncoder().encode(all), let text = String(data: data, encoding: .utf8) {
+            lastAccountsJSON = text
+        }
+    }
+
     private func applyDefaults() {
+        // Start from the accounts used last time for this type, when they still exist and are allowed here.
+        if let last = lastAccounts[kind.rawValue] {
+            let fromOK = last.from.map { id in fromGroups.contains { $0.accounts.contains { $0.persistentModelID == id } } } ?? false
+            let toOK = last.to.map { id in toGroups.contains { $0.accounts.contains { $0.persistentModelID == id } } } ?? false
+            if fromOK || toOK {
+                fromID = fromOK ? last.from : nil
+                toID = toOK ? last.to : nil
+                if kind == .transfer, fromID == toID { toID = nil }
+                if (kind == .income ? toID != nil : fromID != nil) { return }
+            }
+        }
         let ids = mine.map(\.persistentModelID)
         switch kind {
         case .expense:
@@ -405,6 +438,8 @@ struct EntryView: View {
             return
         }
         let amount = centavos
+        rememberAccounts()
+        savedCount += 1
         let entry = Entry(amountCentavos: amount, kind: kind, date: date,
                           from: account(fromID), to: account(toID),
                           note: note.trimmingCharacters(in: .whitespacesAndNewlines))

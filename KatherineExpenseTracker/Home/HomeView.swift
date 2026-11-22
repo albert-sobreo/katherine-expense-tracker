@@ -19,6 +19,8 @@ struct HomeView: View {
     @State private var showSheet = false
     @State private var showMonthSheet = false
     @State private var showAnalytics = false
+    @State private var showBudget = false
+    @AppStorage(Budget.key) private var budget = 0
 
     private static func startOfMonth(_ date: Date) -> Date {
         Calendar.current.dateInterval(of: .month, for: date)?.start ?? date
@@ -50,6 +52,7 @@ struct HomeView: View {
             LinearGradient(colors: [p.bg.opacity(0), p.bg], startPoint: .top, endPoint: .init(x: 0.5, y: 0.7))
                 .frame(height: 130)
                 .allowsHitTesting(false)
+                .ignoresSafeArea(edges: .bottom)
 
             Button(action: newEntry) {
                 Label("New entry", systemImage: "plus")
@@ -64,7 +67,12 @@ struct HomeView: View {
         }
         .foregroundStyle(p.fg)
         .background(p.bg)
+        .task(id: WidgetSnapshot.make(entries: entries, accounts: accounts, budget: budget)) {
+            // Keep the Home Screen widget's numbers current.
+            WidgetSnapshot.make(entries: entries, accounts: accounts, budget: budget).save()
+        }
         .sheet(isPresented: $showSetup) { NeedsSetupSheet() }
+        .sheet(isPresented: $showBudget) { BudgetSheet() }
         .sheet(isPresented: $showMonthSheet) {
             MonthPickerSheet(selection: Binding(get: { month }, set: { if let m = $0 { month = m } }),
                              entryDates: entries.map(\.date))
@@ -159,6 +167,7 @@ struct HomeView: View {
                     .padding(.horizontal, 34)
             }
             .frame(height: 84)
+            budgetBar(spent: t.expense, p)
             HStack(spacing: 0) {
                 stat("Income", Money.peso(t.income), p)
                 Rectangle().fill(p.line).frame(width: 1, height: 30)
@@ -172,6 +181,53 @@ struct HomeView: View {
         }
         .padding(.top, 4)
         .padding(.horizontal, 16)
+    }
+
+    /// Progress toward the monthly budget, or a small link to set one.
+    @ViewBuilder
+    private func budgetBar(spent: Int, _ p: Palette) -> some View {
+        if budget > 0 {
+            let over = spent > budget
+            let share = min(Double(spent) / Double(budget), 1)
+            let rose = Color(hex: scheme == .dark ? "#FB7185" : "#F43F5E")
+            Button { showBudget = true } label: {
+                VStack(spacing: 7) {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(p.chip)
+                            Capsule().fill(over ? rose : p.fg)
+                                .frame(width: max(geo.size.width * share, share > 0 ? 6 : 0))
+                        }
+                    }
+                    .frame(height: 6)
+                    HStack {
+                        Text(over ? "\(Money.peso(spent - budget)) OVER" : "\(Money.peso(budget - spent)) LEFT")
+                            .font(.outfit(11, .semibold)).tracking(1.4)
+                            .foregroundStyle(over ? rose : p.fg)
+                        Spacer()
+                        Text("BUDGET \(Money.peso(budget))")
+                            .font(.outfit(11, .semibold)).tracking(1.4)
+                            .foregroundStyle(p.muted)
+                    }
+                }
+                .contentShape(.rect)
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 8)
+            .padding(.top, 10)
+            .padding(.bottom, 4)
+        } else if isThisMonth {
+            Button { showBudget = true } label: {
+                Label("Set a monthly budget", systemImage: "plus")
+                    .font(.outfit(12, .semibold))
+                    .foregroundStyle(p.muted)
+                    .padding(.horizontal, 12).frame(height: 28)
+                    .background(p.chip, in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 6)
+            .padding(.bottom, 4)
+        }
     }
 
     private func stat(_ label: String, _ value: String, _ p: Palette) -> some View {

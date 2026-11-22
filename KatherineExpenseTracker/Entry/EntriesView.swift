@@ -11,6 +11,7 @@ struct EntriesView: View {
     var account: Account? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Entry.date, order: .reverse) private var entries: [Entry]
     @Query(sort: \Account.sortOrder) private var allAccounts: [Account]
@@ -349,13 +350,20 @@ struct EntriesView: View {
                     ForEach(Array(list.enumerated()), id: \.element.persistentModelID) { i, e in
                         let firstOfDay = i == 0 || !cal.isDate(e.date, inSameDayAs: list[i - 1].date)
                         let lastOfDay = i == list.count - 1 || !cal.isDate(e.date, inSameDayAs: list[i + 1].date)
-                        Button { editing = e } label: {
-                            row(e, firstOfDay: firstOfDay, lastOfDay: lastOfDay,
-                                bg: bands[i] == 1 ? stripe : p.card, grid: grid, p: p)
+                        SwipeToDelete(onDelete: { delete(e) }) {
+                            Button { editing = e } label: {
+                                row(e, firstOfDay: firstOfDay, lastOfDay: lastOfDay,
+                                    bg: bands[i] == 1 ? stripe : p.card, grid: grid, p: p)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Edit")
+                            .contextMenu {
+                                Button("Edit", systemImage: "pencil") { editing = e }
+                                Button("Delete", systemImage: "trash", role: .destructive) { delete(e) }
+                            }
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityHint("Edit")
                     }
+                    if list.isEmpty { emptyHint(p) }
                     addRow(grid: grid, p: p)
                 } header: {
                     HStack(spacing: 0) {
@@ -467,6 +475,34 @@ struct EntriesView: View {
         .background(bg)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
+    }
+
+    private func delete(_ e: Entry) {
+        withAnimation(.easeOut(duration: 0.2)) {
+            context.delete(e)
+            try? context.save()
+        }
+    }
+
+    /// Shown in the sheet when there are no rows: why, and what to do.
+    private func emptyHint(_ p: Palette) -> some View {
+        let searching = !appliedQuery.isEmpty || accountFilter != nil || filter != nil
+        return VStack(spacing: 6) {
+            Image(systemName: searching ? "magnifyingglass" : "tablecells")
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(p.muted)
+            Text(searching ? "No matching entries" : "Nothing logged here yet")
+                .font(.outfit(15, .semibold))
+            Text(searching
+                 ? "Try another word, or clear the filters."
+                 : "Every entry shows up as a row: date, item and account, amount. Tap + or Add a row to log one. Swipe a row left to delete it.")
+                .font(.outfit(13))
+                .foregroundStyle(p.muted)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 28)
+        .frame(maxWidth: .infinity)
     }
 
     private func addRow(grid: Color, p: Palette) -> some View {
