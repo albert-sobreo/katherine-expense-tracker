@@ -159,13 +159,13 @@ struct AnalyticsView: View {
     private func header(_ p: Palette) -> some View {
         HStack {
             Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
+                Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: 36, height: 36)
                     .background(p.chip, in: .circle)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Back")
+            .accessibilityLabel("Close")
             Spacer()
             Text("Analytics").font(.outfit(17, .bold))
             Spacer()

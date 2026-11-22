@@ -73,7 +73,7 @@ struct LoansView: View {
         .background(p.bg)
         .sheet(isPresented: $adding) { AccountForm(loan: true) }
         #if os(iOS)
-        .fullScreenCover(item: $viewing) { EntriesView(account: $0) }
+        .sheet(item: $viewing) { EntriesView(account: $0) }
         #else
         .sheet(item: $viewing) { EntriesView(account: $0).frame(minWidth: 420, minHeight: 760) }
         #endif
@@ -82,13 +82,13 @@ struct LoansView: View {
     private func header(_ p: Palette) -> some View {
         HStack {
             Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
+                Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: 36, height: 36)
                     .background(p.chip, in: .circle)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Back")
+            .accessibilityLabel("Close")
             Spacer()
             Text("Loans").font(.outfit(17, .bold))
             Spacer()

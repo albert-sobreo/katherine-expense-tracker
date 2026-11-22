@@ -160,6 +160,8 @@ struct EntryView: View {
             }
         }
         .sensoryFeedback(.success, trigger: savedCount)
+        // A swipe down closes the sheet, but not while a new amount is typed and unsaved.
+        .interactiveDismissDisabled(editing == nil && !amountText.isEmpty)
         .onChange(of: toID) { _, id in
             // Lending to someone from Expense: loans move money, they aren't spending.
             if kind == .expense, account(id)?.isLoan == true { switchToTransfer() }

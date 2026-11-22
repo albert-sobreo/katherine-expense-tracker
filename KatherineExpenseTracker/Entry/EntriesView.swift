@@ -112,8 +112,8 @@ struct EntriesView: View {
             // Deleting the account from its edit form closes this screen too.
             if new == nil, let account, account.modelContext == nil || account.isDeleted { dismiss() }
         }
-        .fullScreenCover(item: $editing) { EntryView(editing: $0) }
-        .fullScreenCover(isPresented: $showNew) { EntryView() }
+        .sheet(item: $editing) { EntryView(editing: $0) }
+        .sheet(isPresented: $showNew) { EntryView() }
         #else
         .sheet(item: $editing) { EntryView(editing: $0).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showNew) { EntryView().frame(minWidth: 420, minHeight: 760) }
@@ -125,13 +125,13 @@ struct EntriesView: View {
     private func header(_ p: Palette) -> some View {
         HStack {
             Button { dismiss() } label: {
-                Image(systemName: "chevron.left")
+                Image(systemName: "xmark")
                     .font(.system(size: 16, weight: .semibold))
                     .frame(width: 36, height: 36)
                     .background(p.chip, in: .circle)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Back")
+            .accessibilityLabel("Close")
             Spacer()
             if let account {
                 HStack(spacing: 8) {

@@ -9,7 +9,7 @@ struct ContentView: View {
     var body: some View {
         Group {
             if didFinishOnboarding {
-                HomeView()
+                NavigationStack { HomeView() }
             } else {
                 OnboardingFlow { withAnimation { didFinishOnboarding = true } }
             }

@@ -116,6 +116,16 @@ struct HomeView: View {
         }
         .foregroundStyle(p.fg)
         .background(p.bg)
+        #if os(iOS)
+        .toolbar(.hidden, for: .navigationBar)
+        #endif
+        // Settings is a page (pushed, swipe from the left to go back); everything else is a sheet.
+        .navigationDestination(isPresented: $showSettings) {
+            SettingsView()
+                #if os(iOS)
+                .toolbar(.hidden, for: .navigationBar)
+                #endif
+        }
         .task(id: WidgetSnapshot.make(entries: entries, accounts: accounts, budget: budget)) {
             // Keep the Home Screen widget's numbers current.
             WidgetSnapshot.make(entries: entries, accounts: accounts, budget: budget).save()
@@ -131,21 +141,19 @@ struct HomeView: View {
                 .presentationDragIndicator(.visible)
         }
         #if os(iOS)
-        .fullScreenCover(isPresented: $showEntry) { EntryView() }
-        .fullScreenCover(item: $editingEntry) { entry in EntryView(editing: entry) }
-        .fullScreenCover(isPresented: $showSheet) { EntriesView(month: month) }
-        .fullScreenCover(isPresented: $showAnalytics) { AnalyticsView(month: month) }
-        .fullScreenCover(item: $viewingAccount) { EntriesView(account: $0) }
-        .fullScreenCover(isPresented: $showLoans) { LoansView() }
-        .fullScreenCover(isPresented: $showSettings) { SettingsView() }
-        .fullScreenCover(item: $repeating) { EntryView(template: $0) }
+        .sheet(isPresented: $showEntry) { EntryView() }
+        .sheet(item: $editingEntry) { entry in EntryView(editing: entry) }
+        .sheet(isPresented: $showSheet) { EntriesView(month: month) }
+        .sheet(isPresented: $showAnalytics) { AnalyticsView(month: month) }
+        .sheet(item: $viewingAccount) { EntriesView(account: $0) }
+        .sheet(isPresented: $showLoans) { LoansView() }
+        .sheet(item: $repeating) { EntryView(template: $0) }
         #else
         .sheet(item: $editingEntry) { entry in EntryView(editing: entry).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showSheet) { EntriesView(month: month).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showAnalytics) { AnalyticsView(month: month).frame(minWidth: 420, minHeight: 760) }
         .sheet(item: $viewingAccount) { EntriesView(account: $0).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showLoans) { LoansView().frame(minWidth: 420, minHeight: 760) }
-        .sheet(isPresented: $showSettings) { SettingsView().frame(minWidth: 420, minHeight: 760) }
         .sheet(item: $repeating) { EntryView(template: $0).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showEntry) { EntryView().frame(minWidth: 420, minHeight: 760) }
         #endif

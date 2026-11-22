@@ -67,7 +67,7 @@ struct AccountSetupPage: View {
         .onAppear { Setup.me(in: context) }
         .sheet(item: $formOwner) { choice in AccountForm(owner: choice.person, payee: choice.payee, loan: choice.loan) }
         #if os(iOS)
-        .fullScreenCover(item: $viewing) { account in EntriesView(account: account) }
+        .sheet(item: $viewing) { account in EntriesView(account: account) }
         #else
         .sheet(item: $viewing) { account in EntriesView(account: account).frame(minWidth: 420, minHeight: 760) }
         #endif
