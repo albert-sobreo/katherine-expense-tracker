@@ -10,8 +10,10 @@ struct RailGroup: Identifiable {
 
     /// Groups every account by owner, most-used first inside each group.
     /// `withPayees` adds a Payees group in front (for Paid to and Received from).
-    static func build(people: [Person], accounts all: [Account], withPayees: Bool = false) -> [RailGroup] {
-        let accounts = all.filter { !$0.isPayee }
+    /// `withLoans` adds a Loans group right after Mine (for Transfer and Home).
+    static func build(people: [Person], accounts all: [Account], withPayees: Bool = false,
+                      withLoans: Bool = false) -> [RailGroup] {
+        let accounts = all.filter { !$0.isPayee && !$0.isLoan }
         func usage(_ a: Account) -> Int { (a.outgoing?.count ?? 0) + (a.incoming?.count ?? 0) }
         func sorted(_ list: [Account]) -> [Account] {
             list.sorted { usage($0) != usage($1) ? usage($0) > usage($1) : $0.sortOrder < $1.sortOrder }
@@ -26,6 +28,13 @@ struct RailGroup: Identifiable {
         }
         let loose = accounts.filter { $0.owner == nil }
         if !loose.isEmpty { groups.append(RailGroup(id: "others", label: "Others", accounts: sorted(loose))) }
+        if withLoans {
+            let loans = all.filter(\.isLoan)
+            if !loans.isEmpty {
+                let at = groups.first?.label == "Mine" ? 1 : 0
+                groups.insert(RailGroup(id: "loans", label: "Loans", accounts: sorted(loans)), at: at)
+            }
+        }
         if withPayees {
             let payees = all.filter(\.isPayee)
             if !payees.isEmpty { groups.insert(RailGroup(id: "payees", label: "Payees", accounts: sorted(payees)), at: 0) }
@@ -137,7 +146,9 @@ struct AccountRail: View {
                                     selection = on ? nil : a.persistentModelID
                                 }
                             } label: {
-                                AccountTile(name: a.name, last4: a.last4, colorHex: a.colorHex, selected: on)
+                                AccountTile(name: a.name, last4: a.last4, colorHex: a.colorHex, selected: on,
+                                            balance: a.isPayee ? nil : a.balanceCentavos, isCredit: a.kind == .credit,
+                                            loanStatus: a.isLoan ? a.loanStatus : nil)
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(["Mine", "Others", "Payees"].contains(g.label) ? a.name : "\(g.label)'s \(a.name)")

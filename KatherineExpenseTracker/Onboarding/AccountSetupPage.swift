@@ -25,6 +25,7 @@ struct AccountSetupPage: View {
         let id = UUID()
         let person: Person?
         var payee = false
+        var loan = false
     }
 
     var body: some View {
@@ -44,6 +45,7 @@ struct AccountSetupPage: View {
                     AccountsByOwner(
                         onAdd: { person in formOwner = OwnerChoice(person: person) },
                         onAddPayee: { formOwner = OwnerChoice(person: nil, payee: true) },
+                        onAddLoan: { formOwner = OwnerChoice(person: nil, loan: true) },
                         onEdit: { viewing = $0 },
                         onEditPerson: { editingPerson = $0 }
                     )
@@ -79,7 +81,7 @@ struct AccountSetupPage: View {
         .foregroundStyle(p.fg)
         .background(p.bg)
         .onAppear { Setup.me(in: context) }
-        .sheet(item: $formOwner) { choice in AccountForm(owner: choice.person, payee: choice.payee) }
+        .sheet(item: $formOwner) { choice in AccountForm(owner: choice.person, payee: choice.payee, loan: choice.loan) }
         .sheet(isPresented: $showPersonSheet) { PersonSheet() }
         .sheet(item: $viewing) { account in EntriesView(account: account) }
         .sheet(item: $editingPerson) { person in PersonEditSheet(person: person) }

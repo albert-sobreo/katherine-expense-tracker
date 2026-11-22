@@ -6,6 +6,7 @@ import SwiftData
 struct AccountsByOwner: View {
     var onAdd: (Person?) -> Void
     var onAddPayee: () -> Void = {}
+    var onAddLoan: () -> Void = {}
     /// Tapping a tile: opens the account's transactions.
     var onEdit: (Account) -> Void = { _ in }
     /// Tapping a group's "Edit": rename, reorder or delete that person.
@@ -26,11 +27,12 @@ struct AccountsByOwner: View {
             .sorted { ($0.isMe ? 0 : 1, $0.sortOrder) < ($1.isMe ? 0 : 1, $1.sortOrder) }
             .map { person in
                 OwnerGroup(person: person,
-                           accounts: accounts.filter { $0.owner?.persistentModelID == person.persistentModelID })
+                           accounts: accounts.filter { !$0.isLoan && $0.owner?.persistentModelID == person.persistentModelID })
             }
     }
 
     private var payees: [Account] { accounts.filter(\.isPayee) }
+    private var loans: [Account] { accounts.filter(\.isLoan) }
 
     var body: some View {
         let p = Palette.of(scheme)
@@ -57,7 +59,8 @@ struct AccountsByOwner: View {
                     LazyVGrid(columns: Array(repeating: GridItem(.fixed(88), spacing: 0), count: 4), spacing: 0) {
                         ForEach(list) { account in
                             Button { onEdit(account) } label: {
-                                AccountTile(name: account.name, last4: account.last4, colorHex: account.colorHex)
+                                AccountTile(name: account.name, last4: account.last4, colorHex: account.colorHex,
+                                            balance: account.balanceCentavos, isCredit: account.kind == .credit)
                             }
                             .buttonStyle(.plain)
                             .accessibilityHint("Show transactions")
@@ -74,6 +77,38 @@ struct AccountsByOwner: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel(person.isMe ? "Add one of my accounts" : "Add one of \(person.name)'s accounts")
                     }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("LOANS")
+                        .font(.outfit(11, .semibold)).tracking(1.8)
+                    Spacer()
+                    Text(loans.isEmpty ? "Money lent or borrowed" : (loans.count == 1 ? "1 loan" : "\(loans.count) loans"))
+                        .font(.outfit(12, .medium)).foregroundStyle(p.muted)
+                }
+                .padding(.horizontal, 4)
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(88), spacing: 0), count: 4), spacing: 0) {
+                    ForEach(loans) { loan in
+                        Button { onEdit(loan) } label: {
+                            AccountTile(name: loan.name, last4: "", colorHex: loan.colorHex,
+                                        balance: loan.balanceCentavos, loanStatus: loan.loanStatus)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Show transactions")
+                    }
+                    Button(action: onAddLoan) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundStyle(p.muted)
+                            .frame(width: 88, height: 80)
+                            .overlay(RoundedRectangle(cornerRadius: 22)
+                                .strokeBorder(p.line, style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])))
+                            .scaleEffect(0.95)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Add a loan")
                 }
             }
 

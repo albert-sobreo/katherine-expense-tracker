@@ -23,6 +23,9 @@ final class Account {
     /// A payee is someone or something money goes to or comes from that Kath doesn't hold:
     /// Meralco, Grab, a store, her employer. Payees have no owner, no last 4 and no balance.
     var isPayee: Bool = false
+    /// A loan with one person (the owner). One tile per person nets everything out:
+    /// above zero they owe Kath, below zero Kath owes them. Lending and paybacks are transfers.
+    var isLoan: Bool = false
     /// Balance when the account was added, in centavos. Negative for what's already owed on a card.
     var openingCentavos: Int = 0
     var sortOrder: Int = 0

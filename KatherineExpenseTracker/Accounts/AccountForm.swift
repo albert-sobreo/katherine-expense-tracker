@@ -9,6 +9,8 @@ struct AccountForm: View {
     var owner: Person?
     /// Start on Payee instead of Bank or wallet.
     var payee = false
+    /// Start on Loan.
+    var loan = false
     /// The account to edit. Nil adds a new one.
     var editing: Account? = nil
 
@@ -28,11 +30,26 @@ struct AccountForm: View {
     @State private var opening = ""
     @State private var dueDay = ""
     @State private var showPersonSheet = false
-    @State private var isPayee = false
+    @State private var type: AccountType = .bank
+    /// Loans: true when the starting balance is what they owe Kath, false when Kath owes them.
+    @State private var theyOwe = true
     @State private var skipTypeReset = false
     @State private var confirmDelete = false
 
-    private var presets: [BankPreset] { isPayee ? BankPreset.payees : BankPreset.all }
+    enum AccountType: CaseIterable { case bank, payee, loan }
+    private var isPayee: Bool { type == .payee }
+    private var isLoan: Bool { type == .loan }
+
+    private var presets: [BankPreset] {
+        switch type {
+        case .bank: BankPreset.all
+        case .payee: BankPreset.payees
+        case .loan: BankPreset.loanColors
+        }
+    }
+
+    /// People a loan can be with: everyone but Kath.
+    private var ownerChoices: [Person] { isLoan ? people.filter { !$0.isMe } : people }
 
     private var canSave: Bool {
         let hasName = !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -48,11 +65,16 @@ struct AccountForm: View {
                     if editing == nil { typeSwitch(p) }
                     if !isPayee {
                         ownerRow(p)
-                        kindSwitch(p)
+                        if isLoan { directionSwitch(p) } else { kindSwitch(p) }
                     }
                     nameRow(p)
                     if !isPayee { openingRow(p) }
-                    if !isPayee && kind == .credit { creditRow(p) }
+                    if type == .bank && kind == .credit { creditRow(p) }
+                    if isLoan {
+                        Text("Lending, borrowing and paybacks are Transfers to or from this tile. Above zero they owe you; below zero you owe them.")
+                            .font(.outfit(13)).foregroundStyle(p.muted)
+                            .padding(.horizontal, 4)
+                    }
                     presetGrid(p)
                     if editing != nil { deleteButton(p) }
                 }
@@ -70,11 +92,17 @@ struct AccountForm: View {
             }
             if selectedOwner == nil { selectedOwner = owner }
             if payee {
-                isPayee = true
+                skipTypeReset = true
+                type = .payee
                 colorHex = BankPreset.payees[0].hex
+            } else if loan {
+                skipTypeReset = true
+                type = .loan
+                colorHex = BankPreset.loanColors[0].hex
+                if selectedOwner?.isMe == true { selectedOwner = nil }
             }
         }
-        .onChange(of: isPayee) { _, _ in
+        .onChange(of: type) { _, new in
             if skipTypeReset {
                 skipTypeReset = false
                 return
@@ -83,6 +111,15 @@ struct AccountForm: View {
             if pickedPreset != nil || name.isEmpty { name = "" }
             pickedPreset = nil
             colorHex = presets[0].hex
+            if new == .loan {
+                if selectedOwner?.isMe == true { selectedOwner = nil }
+                if let person = selectedOwner, name.isEmpty { name = person.name }
+            }
+        }
+        .onChange(of: selectedOwner) { old, new in
+            // A loan is named after the person unless she typed her own name.
+            guard isLoan, let new else { return }
+            if name.isEmpty || name == old?.name { name = new.name }
         }
         .sheet(isPresented: $showPersonSheet) {
             PersonSheet { selectedOwner = $0 }
@@ -115,13 +152,16 @@ struct AccountForm: View {
     }
 
     private var title: String {
-        if editing != nil { return isPayee ? "Edit payee" : "Edit account" }
-        return isPayee ? "New payee" : "New account"
+        switch type {
+        case .payee: return editing == nil ? "New payee" : "Edit payee"
+        case .loan: return editing == nil ? "New loan" : "Edit loan"
+        case .bank: return editing == nil ? "New account" : "Edit account"
+        }
     }
 
     private func deleteButton(_ p: Palette) -> some View {
         Button { confirmDelete = true } label: {
-            Text(isPayee ? "Delete payee" : "Delete account")
+            Text(isPayee ? "Delete payee" : (isLoan ? "Delete loan" : "Delete account"))
                 .font(.outfit(13, .semibold)).tracking(1.6).textCase(.uppercase)
                 .foregroundStyle(Color(hex: "#DC2626"))
                 .frame(maxWidth: .infinity).frame(height: 52)
@@ -141,13 +181,13 @@ struct AccountForm: View {
 
     private func typeSwitch(_ p: Palette) -> some View {
         HStack(spacing: 3) {
-            ForEach([false, true], id: \.self) { option in
-                let on = isPayee == option
-                Button { isPayee = option } label: {
+            ForEach(AccountType.allCases, id: \.self) { option in
+                let on = type == option
+                Button { type = option } label: {
                     VStack(spacing: 1) {
-                        Text(option ? "PAYEE" : "BANK OR WALLET")
+                        Text(option == .bank ? "BANK" : (option == .payee ? "PAYEE" : "LOAN"))
                             .font(.outfit(12, .semibold)).tracking(1.4)
-                        Text(option ? "Bills, stores, salary" : "Where money is kept")
+                        Text(option == .bank ? "Money kept" : (option == .payee ? "Bills, stores" : "Lent, borrowed"))
                             .font(.outfit(11, .medium)).foregroundStyle(p.muted)
                     }
                     .frame(maxWidth: .infinity).frame(height: 46)
@@ -164,7 +204,7 @@ struct AccountForm: View {
 
     private func ownerRow(_ p: Palette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("Whose account").padding(.horizontal, 4)
+            SectionLabel(isLoan ? "With whom" : "Whose account").padding(.horizontal, 4)
             ScrollView(.horizontal) {
                 HStack(spacing: 8) {
                     Button { showPersonSheet = true } label: {
@@ -176,7 +216,7 @@ struct AccountForm: View {
                             .overlay(Capsule().strokeBorder(p.muted, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
                     }
                     .buttonStyle(.plain)
-                    ForEach(people) { person in
+                    ForEach(ownerChoices) { person in
                         let on = selectedOwner?.persistentModelID == person.persistentModelID
                         Button { selectedOwner = person } label: {
                             Text(person.name.uppercased())
@@ -220,19 +260,64 @@ struct AccountForm: View {
         .background(p.chip, in: .rect(cornerRadius: 14))
     }
 
+    /// Loans: whether the starting balance is owed to Kath or by her.
+    private func directionSwitch(_ p: Palette) -> some View {
+        HStack(spacing: 3) {
+            ForEach([true, false], id: \.self) { option in
+                let on = theyOwe == option
+                Button { theyOwe = option } label: {
+                    VStack(spacing: 1) {
+                        Text(option ? "THEY OWE ME" : "I OWE THEM")
+                            .font(.outfit(12, .semibold)).tracking(1.4)
+                        Text("Starting balance")
+                            .font(.outfit(11, .medium)).foregroundStyle(p.muted)
+                    }
+                    .frame(maxWidth: .infinity).frame(height: 46)
+                    .foregroundStyle(on ? p.fg : p.muted)
+                    .background(on ? p.card : .clear, in: .rect(cornerRadius: 11))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background(p.chip, in: .rect(cornerRadius: 14))
+    }
+
+    /// The typed starting amount, signed: negative for a card or for money Kath owes on a loan.
+    private var signedOpening: Int {
+        let typed = Double(opening.replacingOccurrences(of: ",", with: "")).map { Int(($0 * 100).rounded()) } ?? 0
+        if isLoan { return theyOwe ? typed : -typed }
+        return kind == .credit ? -typed : typed
+    }
+
+    /// Balance the preview tile shows: the typed starting balance plus any entries already logged.
+    private var previewBalance: Int {
+        let activity = editing.map { $0.balanceCentavos - $0.openingCentavos } ?? 0
+        return signedOpening + activity
+    }
+
+    private var previewLoanStatus: String? {
+        guard isLoan else { return nil }
+        let b = previewBalance
+        return b > 0 ? "Owes you" : (b < 0 ? "You owe" : "Even")
+    }
+
     private func nameRow(_ p: Palette) -> some View {
         HStack(spacing: 12) {
-            AccountTile(name: name.isEmpty ? "Name" : name, last4: isPayee ? "" : last4, colorHex: colorHex,
-                        selected: true, width: 110, height: 100)
+            AccountTile(name: name.isEmpty ? "Name" : name, last4: type == .bank ? last4 : "", colorHex: colorHex,
+                        selected: true, width: 110, height: 100,
+                        balance: isPayee ? nil : previewBalance, isCredit: type == .bank && kind == .credit,
+                        loanStatus: previewLoanStatus)
             VStack(spacing: 0) {
                 HStack {
                     Text("Name").font(.outfit(14, .medium))
-                    TextField(isPayee ? "Meralco" : "BDO Savings", text: $name)
+                    TextField(isPayee ? "Meralco" : (isLoan ? "Mama" : "BDO Savings"), text: $name)
                         .font(.outfit(15, .semibold))
                         .multilineTextAlignment(.trailing)
                 }
                 .frame(maxHeight: .infinity)
-                if !isPayee {
+                if type == .bank {
                     Divider().overlay(p.line)
                     HStack {
                         Text("Last 4").font(.outfit(14, .medium))
@@ -257,7 +342,7 @@ struct AccountForm: View {
     /// What's in the account right now (or owed, for a card), so balances start from the real number.
     private func openingRow(_ p: Palette) -> some View {
         HStack {
-            Text(kind == .credit ? "Owed now" : "Balance now").font(.outfit(14, .medium))
+            Text(isLoan ? "Amount now" : (kind == .credit ? "Owed now" : "Balance now")).font(.outfit(14, .medium))
             TextField("₱0", text: $opening)
                 .font(.barlow(19))
                 .multilineTextAlignment(.trailing)
@@ -299,9 +384,9 @@ struct AccountForm: View {
     private func presetGrid(_ p: Palette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
-                SectionLabel(isPayee ? "Biller or store" : "Bank or wallet")
+                SectionLabel(isPayee ? "Biller or store" : (isLoan ? "Color" : "Bank or wallet"))
                 Spacer()
-                Text("Sets name and color").font(.outfit(12)).foregroundStyle(p.muted)
+                if !isLoan { Text("Sets name and color").font(.outfit(12)).foregroundStyle(p.muted) }
             }
             .padding(.horizontal, 4)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
@@ -319,7 +404,7 @@ struct AccountForm: View {
                                 }
                                 .padding(on ? 3 : 0)
                                 .overlay(RoundedRectangle(cornerRadius: 15).strokeBorder(on ? p.fg : .clear, lineWidth: 2))
-                            Text(preset.name)
+                            Text(isLoan ? "" : preset.name)
                                 .font(.outfit(11, .semibold))
                                 .foregroundStyle(p.muted)
                                 .lineLimit(1)
@@ -339,6 +424,11 @@ struct AccountForm: View {
     // MARK: Actions
 
     private func pick(_ preset: BankPreset) {
+        if isLoan {
+            pickedPreset = preset
+            colorHex = preset.hex
+            return
+        }
         let typedOwnName = !name.isEmpty && !(BankPreset.all + BankPreset.payees).contains { $0.name == name }
         pickedPreset = preset
         colorHex = preset.hex
@@ -358,7 +448,15 @@ struct AccountForm: View {
         account.name = name.trimmingCharacters(in: .whitespaces)
         account.colorHex = colorHex
         account.isPayee = isPayee
-        if isPayee {
+        account.isLoan = isLoan
+        if isLoan {
+            account.owner = selectedOwner
+            account.last4 = ""
+            account.kind = .debit
+            account.openingCentavos = signedOpening
+            account.creditLimitCentavos = nil
+            account.dueDay = nil
+        } else if isPayee {
             account.owner = nil
             account.last4 = ""
             account.kind = .debit
@@ -369,8 +467,7 @@ struct AccountForm: View {
             account.owner = selectedOwner
             account.last4 = last4
             account.kind = kind
-            let centavos = Double(opening.replacingOccurrences(of: ",", with: "")).map { Int(($0 * 100).rounded()) } ?? 0
-            account.openingCentavos = kind == .credit ? -centavos : centavos
+            account.openingCentavos = signedOpening
             if kind == .credit {
                 account.creditLimitCentavos = Int(limit.filter(\.isNumber)).map { $0 * 100 }
                 account.dueDay = Int(dueDay.filter(\.isNumber)).flatMap { (1...31).contains($0) ? $0 : nil }
@@ -384,16 +481,19 @@ struct AccountForm: View {
 
     /// Fills the form from the account being edited.
     private func load(_ a: Account) {
-        if a.isPayee != isPayee {
+        let t: AccountType = a.isLoan ? .loan : (a.isPayee ? .payee : .bank)
+        if t != type {
             skipTypeReset = true
-            isPayee = a.isPayee
+            type = t
         }
+        theyOwe = a.openingCentavos >= 0
         selectedOwner = a.owner
         kind = a.kind
         name = a.name
         last4 = a.last4
         colorHex = a.colorHex
-        pickedPreset = (a.isPayee ? BankPreset.payees : BankPreset.all).first { $0.name == a.name && $0.hex == a.colorHex }
+        pickedPreset = a.isLoan ? BankPreset.loanColors.first { $0.hex == a.colorHex }
+            : (a.isPayee ? BankPreset.payees : BankPreset.all).first { $0.name == a.name && $0.hex == a.colorHex }
         opening = a.openingCentavos == 0 ? "" : EntryView.sanitize(Self.plain(abs(a.openingCentavos)))
         limit = a.creditLimitCentavos.map { String($0 / 100) } ?? ""
         dueDay = a.dueDay.map(String.init) ?? ""

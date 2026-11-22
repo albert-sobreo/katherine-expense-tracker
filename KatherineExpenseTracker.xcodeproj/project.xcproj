@@ -63,7 +63,7 @@
         },
       ],
       "build-settings": {
-        "ASSETCATALOG_COMPILER_APPICON_NAME": "",
+        "ASSETCATALOG_COMPILER_APPICON_NAME": "App Icon",
         "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
         "CODE_SIGN_ENTITLEMENTS": "KatherineExpenseTracker.entitlements",
         "CODE_SIGN_STYLE": "Automatic",

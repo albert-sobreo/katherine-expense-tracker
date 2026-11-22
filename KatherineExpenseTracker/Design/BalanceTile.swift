@@ -5,7 +5,7 @@ struct BalanceTile: View {
     let account: Account
 
     var body: some View {
-        let sub = [account.kind == .credit ? "Credit" : nil,
+        let sub = account.isLoan ? account.loanStatus : [account.kind == .credit ? "Credit" : nil,
                    account.last4.isEmpty ? nil : "•• \(account.last4)"]
             .compactMap { $0 }.joined(separator: " ")
         ZStack(alignment: .topLeading) {
@@ -42,7 +42,9 @@ struct BalanceTile: View {
         .frame(width: 88, height: 80)
         .scaleEffect(0.95)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(account.kind == .credit
+        .accessibilityLabel(account.isLoan
+            ? "\(account.name) loan, \(account.loanStatus.lowercased()) \(Money.number(abs(account.balanceCentavos))) pesos"
+            : account.kind == .credit
             ? "\(account.name), owes \(Money.number(-account.balanceCentavos)) pesos"
             : "\(account.name), balance \(Money.number(account.balanceCentavos)) pesos")
     }

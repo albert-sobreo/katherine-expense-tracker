@@ -20,6 +20,7 @@ struct HomeView: View {
     @State private var showMonthSheet = false
     @State private var showAnalytics = false
     @State private var showBudget = false
+    @State private var showLoans = false
     @AppStorage(Budget.key) private var budget = 0
 
     private static func startOfMonth(_ date: Date) -> Date {
@@ -29,6 +30,7 @@ struct HomeView: View {
     private var isThisMonth: Bool { Calendar.current.isDate(month, equalTo: .now, toGranularity: .month) }
     private var totals: MonthTotals { MonthTotals(entries: entries, month: month) }
     private var balanceGroups: [RailGroup] { RailGroup.build(people: people, accounts: accounts) }
+    private var loans: [Account] { accounts.filter(\.isLoan) }
     private var hasMyAccount: Bool { Setup.Readiness(accounts: accounts).isReady }
 
     var body: some View {
@@ -43,6 +45,7 @@ struct HomeView: View {
                         emptyCard(p)
                     }
                     if !balanceGroups.isEmpty { balances(p) }
+                    if !loans.isEmpty { loansRow(p) }
                     if hasMyAccount { recent(p) }
                 }
                 .padding(.bottom, 130)
@@ -87,11 +90,13 @@ struct HomeView: View {
         .fullScreenCover(isPresented: $showSheet) { EntriesView(month: month) }
         .fullScreenCover(isPresented: $showAnalytics) { AnalyticsView(month: month) }
         .fullScreenCover(item: $viewingAccount) { EntriesView(account: $0) }
+        .fullScreenCover(isPresented: $showLoans) { LoansView() }
         #else
         .sheet(item: $editingEntry) { entry in EntryView(editing: entry).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showSheet) { EntriesView(month: month).frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showAnalytics) { AnalyticsView(month: month).frame(minWidth: 420, minHeight: 760) }
         .sheet(item: $viewingAccount) { EntriesView(account: $0).frame(minWidth: 420, minHeight: 760) }
+        .sheet(isPresented: $showLoans) { LoansView().frame(minWidth: 420, minHeight: 760) }
         .sheet(isPresented: $showEntry) { EntryView().frame(minWidth: 420, minHeight: 760) }
         #endif
     }
@@ -308,6 +313,50 @@ struct HomeView: View {
             }
             .scrollIndicators(.hidden)
             .trackRailScroll($balanceScroll)
+        }
+    }
+
+    // MARK: Loans
+
+    /// One tile per person Kath has a loan with, plus what's owed each way.
+    private func loansRow(_ p: Palette) -> some View {
+        let owedToYou = loans.map(\.balanceCentavos).filter { $0 > 0 }.reduce(0, +)
+        let youOwe = -loans.map(\.balanceCentavos).filter { $0 < 0 }.reduce(0, +)
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("LOANS").foregroundStyle(p.muted)
+                    .font(.outfit(11, .semibold)).tracking(1.8)
+                Spacer()
+                Button("See all") { showLoans = true }
+                    .buttonStyle(.plain)
+                    .font(.outfit(14, .medium))
+            }
+            .padding(.horizontal, 20)
+            ScrollView(.horizontal) {
+                HStack(spacing: 0) {
+                    ForEach(loans) { a in
+                        Button { viewingAccount = a } label: { BalanceTile(account: a) }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Show transactions")
+                    }
+                }
+                .padding(.horizontal, 13)
+                .padding(.top, 4)
+            }
+            .scrollIndicators(.hidden)
+            HStack(spacing: 14) {
+                loanStat("Owed to you", owedToYou, p)
+                loanStat("You owe", youOwe, p)
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 4)
+        }
+    }
+
+    private func loanStat(_ label: String, _ value: Int, _ p: Palette) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Text(label).font(.outfit(13)).foregroundStyle(p.muted)
+            Text(Money.peso(value)).font(.barlow(16)).monospacedDigit()
         }
     }
 

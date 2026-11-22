@@ -37,7 +37,13 @@ extension Account {
         return openingCentavos + moneyIn - moneyOut
     }
 
-    var isMine: Bool { owner?.isMe == true && !isPayee }
+    var isMine: Bool { owner?.isMe == true && !isPayee && !isLoan }
+
+    /// "Owes you", "You owe" or "Even" for a loan tile.
+    var loanStatus: String {
+        let b = balanceCentavos
+        return b > 0 ? "Owes you" : (b < 0 ? "You owe" : "Even")
+    }
 }
 
 /// Kath's own numbers for a month. Other people's accounts are tracked but never counted here.
@@ -55,8 +61,9 @@ struct MonthTotals {
         }
     }
 
-    /// Net balance: everything in Kath's own accounts minus what she owes on her cards. Not month-bound.
+    /// Net balance: everything in Kath's own accounts minus what she owes on her cards,
+    /// plus loans (money lent is still hers, money borrowed is debt). Not month-bound.
     static func netBalance(_ accounts: [Account]) -> Int {
-        accounts.filter(\.isMine).reduce(0) { $0 + $1.balanceCentavos }
+        accounts.filter { $0.isMine || $0.isLoan }.reduce(0) { $0 + $1.balanceCentavos }
     }
 }

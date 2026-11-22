@@ -46,10 +46,23 @@ struct EntryView: View {
     private var groupsWithPayees: [RailGroup] { RailGroup.build(people: people, accounts: accounts, withPayees: true) }
 
     /// Payees show only where money leaves to them (Paid to) or comes from them (Received from).
-    private var fromGroups: [RailGroup] { kind == .income ? groupsWithPayees.filter { $0.label != "Mine" } : groups }
+    /// Loans show only on Transfer: lending, borrowing and paybacks are transfers to or from a loan tile.
+    private var groupsWithLoans: [RailGroup] { RailGroup.build(people: people, accounts: accounts, withLoans: true) }
+
+    private var fromGroups: [RailGroup] {
+        switch kind {
+        case .income: groupsWithPayees.filter { $0.label != "Mine" }
+        case .transfer: groupsWithLoans
+        case .expense: groups
+        }
+    }
     /// Paid to never lists Kath's own accounts: paying yourself is a transfer, not an expense.
     private var toGroups: [RailGroup] {
-        kind == .expense ? groupsWithPayees.filter { $0.label != "Mine" } : groups
+        switch kind {
+        case .expense: groupsWithPayees.filter { $0.label != "Mine" }
+        case .transfer: groupsWithLoans
+        case .income: groups
+        }
     }
 
     /// Kath's own accounts, most-used first.

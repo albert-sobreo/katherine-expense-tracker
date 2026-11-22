@@ -29,4 +29,12 @@ struct BankPreset: Identifiable, Hashable {
         .init(name: "7-Eleven", hex: "#008163"), .init(name: "Mercury Drug", hex: "#E31B23"),
         .init(name: "Salary", hex: "#44403C"), .init(name: "Other", hex: "#3F3F46"),
     ]
+
+    /// Tile colors for loans. Names are only ids; the loan is named after the person.
+    static let loanColors: [BankPreset] = [
+        .init(name: "Mauve", hex: "#6B5B6E"), .init(name: "Rose", hex: "#9F1239"),
+        .init(name: "Amber", hex: "#B45309"), .init(name: "Teal", hex: "#0F766E"),
+        .init(name: "Blue", hex: "#1D4ED8"), .init(name: "Violet", hex: "#6D28D9"),
+        .init(name: "Pink", hex: "#BE185D"), .init(name: "Slate", hex: "#3F3F46"),
+    ]
 }
