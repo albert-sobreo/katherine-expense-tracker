@@ -11,6 +11,7 @@ struct EntriesView: View {
     var account: Account? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.inSplitDetail) private var inSplitDetail
     @Environment(\.modelContext) private var context
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Entry.date, order: .reverse) private var entries: [Entry]
@@ -113,10 +114,10 @@ struct EntriesView: View {
             if new == nil, let account, account.modelContext == nil || account.isDeleted { dismiss() }
         }
         .sheet(item: $editing) { EntryView(editing: $0) }
-        .sheet(isPresented: $showNew) { EntryView() }
+        .sheet(isPresented: $showNew) { EntryView(preselect: account) }
         #else
         .sheet(item: $editing) { EntryView(editing: $0).frame(minWidth: 420, minHeight: 760) }
-        .sheet(isPresented: $showNew) { EntryView().frame(minWidth: 420, minHeight: 760) }
+        .sheet(isPresented: $showNew) { EntryView(preselect: account).frame(minWidth: 420, minHeight: 760) }
         #endif
     }
 
@@ -124,14 +125,18 @@ struct EntriesView: View {
 
     private func header(_ p: Palette) -> some View {
         HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 36, height: 36)
-                    .background(p.chip, in: .circle)
+            if inSplitDetail {
+                Color.clear.frame(width: 36, height: 36)
+            } else {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                        .background(p.chip, in: .circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
             Spacer()
             if let account {
                 HStack(spacing: 8) {
@@ -313,16 +318,17 @@ struct EntriesView: View {
                 stat("Rows", "\(rows.count)", p)
             }
             Rectangle().fill(p.line).frame(width: 1, height: 26)
-            stat("In", Money.peso(moneyIn), p)
+            stat("In", Money.peso(moneyIn), p, color: Color(hex: scheme == .dark ? "#34D399" : "#10B981"))
             Rectangle().fill(p.line).frame(width: 1, height: 26)
-            stat("Out", Money.peso(moneyOut), p)
+            stat("Out", Money.peso(moneyOut), p, color: Color(hex: scheme == .dark ? "#FB7185" : "#F43F5E"))
         }
     }
 
-    private func stat(_ label: String, _ value: String, _ p: Palette) -> some View {
+    private func stat(_ label: String, _ value: String, _ p: Palette, color: Color? = nil) -> some View {
         VStack(spacing: 1) {
             Text(label.uppercased()).font(.outfit(10, .semibold)).tracking(1.6).foregroundStyle(p.muted)
             Text(value).font(.barlow(20)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.6)
+                .foregroundStyle(color ?? p.fg)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

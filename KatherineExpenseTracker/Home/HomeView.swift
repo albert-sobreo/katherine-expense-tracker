@@ -24,6 +24,54 @@ struct HomeView: View {
     @State private var showSettings = false
     @State private var repeating: Entry?
     @AppStorage(Budget.key) private var budget = 0
+    @Environment(\.openDetail) private var openDetail
+    @Environment(\.detailRoute) private var detailRoute
+
+    // On a wide iPad window these open on the right side; otherwise in a sheet.
+    private func openEntries() { if let openDetail { openDetail(.entries(month)) } else { showSheet = true } }
+    private func openAnalytics() { if let openDetail { openDetail(.analytics(month)) } else { showAnalytics = true } }
+    private func openLoans() { if let openDetail { openDetail(.loans) } else { showLoans = true } }
+    private func open(_ a: Account) {
+        if let openDetail { openDetail(.account(a.persistentModelID)) } else { viewingAccount = a }
+    }
+    private func isShowing(_ a: Account) -> Bool { detailRoute == .account(a.persistentModelID) }
+    private var showingEntries: Bool {
+        if case .entries? = detailRoute { return true }
+        return false
+    }
+    private var showingAnalytics: Bool {
+        if case .analytics? = detailRoute { return true }
+        return false
+    }
+
+    /// A header circle button; filled in when its screen is open on the right side.
+    private func circleButton(_ icon: String, size: CGFloat = 16, active: Bool = false, _ p: Palette,
+                              action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: size, weight: .medium))
+                .foregroundStyle(active ? p.bg : p.fg)
+                .frame(width: 40, height: 40)
+                .background(active ? p.fg : p.chip, in: .circle)
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// A balance tile, outlined while its transactions are open on the right side.
+    private func tile(_ a: Account, _ p: Palette) -> some View {
+        Button { open(a) } label: {
+            BalanceTile(account: a)
+                .overlay {
+                    if isShowing(a) {
+                        RoundedRectangle(cornerRadius: 22).strokeBorder(p.fg, lineWidth: 2.5)
+                            .scaleEffect(0.95)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Show transactions")
+        .accessibilityAddTraits(isShowing(a) ? .isSelected : [])
+    }
 
     private static func startOfMonth(_ date: Date) -> Date {
         Calendar.current.dateInterval(of: .month, for: date)?.start ?? date
@@ -98,6 +146,7 @@ struct HomeView: View {
                     .shadow(color: .black.opacity(scheme == .dark ? 0.5 : 0.28), radius: 14, y: 12)
             }
             .buttonStyle(.plain)
+            .keyboardShortcut("n", modifiers: .command)
             .contextMenu {
                 // Long-press: repeat one of the latest entries with today's date.
                 if !recentTemplates.isEmpty {
@@ -129,6 +178,14 @@ struct HomeView: View {
         .task(id: WidgetSnapshot.make(entries: entries, accounts: accounts, budget: budget)) {
             // Keep the Home Screen widget's numbers current.
             WidgetSnapshot.make(entries: entries, accounts: accounts, budget: budget).save()
+        }
+        .onChange(of: month) { _, m in
+            // The right side follows Home's month.
+            switch detailRoute {
+            case .entries?: openDetail?(.entries(m))
+            case .analytics?: openDetail?(.analytics(m))
+            default: break
+            }
         }
         .sheet(isPresented: $showSetup) { NeedsSetupSheet() }
         .sheet(isPresented: $showBudget) { BudgetSheet() }
@@ -179,22 +236,10 @@ struct HomeView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Month, \(month.formatted(.dateTime.month(.wide).year()))")
             Spacer()
-            Button { showSheet = true } label: {
-                Image(systemName: "tablecells")
-                    .font(.system(size: 16, weight: .medium))
-                    .frame(width: 40, height: 40)
-                    .background(p.chip, in: .circle)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Spreadsheet view")
-            Button { showAnalytics = true } label: {
-                Image(systemName: "chart.bar")
-                    .font(.system(size: 16, weight: .medium))
-                    .frame(width: 40, height: 40)
-                    .background(p.chip, in: .circle)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Analytics")
+            circleButton("tablecells", active: showingEntries, p, action: openEntries)
+                .accessibilityLabel("Spreadsheet view")
+            circleButton("chart.bar", active: showingAnalytics, p, action: openAnalytics)
+                .accessibilityLabel("Analytics")
             Button { showSettings = true } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 17, weight: .medium))
@@ -232,9 +277,9 @@ struct HomeView: View {
             .frame(height: 84)
             budgetBar(spent: t.expense, p)
             HStack(spacing: 0) {
-                stat("Income", Money.peso(t.income), p)
+                stat("Income", Money.peso(t.income), p, color: Color(hex: scheme == .dark ? "#34D399" : "#10B981"))
                 Rectangle().fill(p.line).frame(width: 1, height: 30)
-                stat("Expense", Money.peso(t.expense), p)
+                stat("Expense", Money.peso(t.expense), p, color: Color(hex: scheme == .dark ? "#FB7185" : "#F43F5E"))
                 Rectangle().fill(p.line).frame(width: 1, height: 30)
                 stat("Net balance", Money.peso(MonthTotals.netBalance(accounts)), p)
             }
@@ -293,7 +338,7 @@ struct HomeView: View {
         }
     }
 
-    private func stat(_ label: String, _ value: String, _ p: Palette) -> some View {
+    private func stat(_ label: String, _ value: String, _ p: Palette, color: Color? = nil) -> some View {
         VStack(spacing: 2) {
             Text(label.uppercased())
                 .font(.outfit(10, .semibold)).tracking(1.6)
@@ -301,6 +346,7 @@ struct HomeView: View {
             Text(value)
                 .font(.barlow(22))
                 .monospacedDigit()
+                .foregroundStyle(color ?? p.fg)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
         }
@@ -367,11 +413,7 @@ struct HomeView: View {
                                 .frame(width: 1, height: 56)
                                 .padding(.horizontal, 7)
                         }
-                        ForEach(g.accounts) { a in
-                            Button { viewingAccount = a } label: { BalanceTile(account: a) }
-                                .buttonStyle(.plain)
-                                .accessibilityHint("Show transactions")
-                        }
+                        ForEach(g.accounts) { a in tile(a, p) }
                     }
                 }
                 .padding(.horizontal, 13)
@@ -393,18 +435,14 @@ struct HomeView: View {
                 Text("LOANS").foregroundStyle(p.muted)
                     .font(.outfit(11, .semibold)).tracking(1.8)
                 Spacer()
-                Button("See all") { showLoans = true }
+                Button("See all", action: openLoans)
                     .buttonStyle(.plain)
                     .font(.outfit(14, .medium))
             }
             .padding(.horizontal, 20)
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
-                    ForEach(loans) { a in
-                        Button { viewingAccount = a } label: { BalanceTile(account: a) }
-                            .buttonStyle(.plain)
-                            .accessibilityHint("Show transactions")
-                    }
+                    ForEach(loans) { a in tile(a, p) }
                 }
                 .padding(.horizontal, 13)
                 .padding(.top, 4)
@@ -453,7 +491,7 @@ struct HomeView: View {
             HStack(alignment: .firstTextBaseline) {
                 SectionLabel("Recent")
                 Spacer()
-                Button("See all") { showSheet = true }
+                Button("See all", action: openEntries)
                     .buttonStyle(.plain)
                     .font(.outfit(13, .medium))
             }

@@ -35,6 +35,9 @@ struct AccountForm: View {
     @State private var theyOwe = true
     @State private var skipTypeReset = false
     @State private var confirmDelete = false
+    @State private var askDiscard = false
+    /// The form as it opened, to tell whether anything changed.
+    @State private var baseline: String?
 
     enum AccountType: CaseIterable { case bank, payee, loan }
     private var isPayee: Bool { type == .payee }
@@ -48,6 +51,12 @@ struct AccountForm: View {
         }
     }
 
+
+    private var fingerprint: String {
+        [String(describing: type), String(describing: kind), selectedOwner?.name ?? "", name, last4,
+         colorHex, limit, opening, dueDay, String(theyOwe)].joined(separator: "|")
+    }
+    private var dirty: Bool { baseline != nil && fingerprint != baseline }
 
     private var canSave: Bool {
         let hasName = !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -86,6 +95,7 @@ struct AccountForm: View {
         .foregroundStyle(p.fg)
         .background(p.bg)
         .onAppear {
+            defer { baseline = fingerprint }
             if let editing {
                 load(editing)
                 return
@@ -111,6 +121,7 @@ struct AccountForm: View {
             pickedPreset = nil
             colorHex = presets[0].hex
         }
+        .discardGuard(dirty: dirty, asking: $askDiscard) { dismiss() }
         .sheet(isPresented: $showPersonSheet) {
             PersonSheet { selectedOwner = $0 }
         }
@@ -120,7 +131,7 @@ struct AccountForm: View {
 
     private func header(_ p: Palette) -> some View {
         HStack {
-            Button("Cancel") { dismiss() }
+            Button("Cancel") { if dirty { askDiscard = true } else { dismiss() } }
                 .buttonStyle(.plain)
                 .font(.outfit(15, .semibold))
                 .padding(.horizontal, 14).frame(height: 34)

@@ -12,11 +12,14 @@ struct BudgetSheet: View {
     @AppStorage(Budget.key) private var budget = 0
     @State private var text = ""
     @FocusState private var focused: Bool
+    @State private var askDiscard = false
 
     private var centavos: Int {
         guard let d = Double(text.replacingOccurrences(of: ",", with: "")) else { return 0 }
         return Int((d * 100).rounded())
     }
+
+    private var dirty: Bool { centavos != budget && !(text.isEmpty && budget == 0) }
 
     var body: some View {
         let p = Palette.of(scheme)
@@ -24,7 +27,7 @@ struct BudgetSheet: View {
             HStack {
                 Text("Monthly budget").font(.outfit(20, .semibold))
                 Spacer()
-                Button { dismiss() } label: {
+                Button { if dirty { askDiscard = true } else { dismiss() } } label: {
                     Image(systemName: "xmark").font(.system(size: 14, weight: .semibold))
                         .frame(width: 34, height: 34)
                         .background(p.chip, in: .circle)
@@ -75,5 +78,6 @@ struct BudgetSheet: View {
             if budget > 0 { text = EntryView.sanitize(Money.number(budget)) }
             focused = true
         }
+        .discardGuard(dirty: dirty, asking: $askDiscard) { dismiss() }
     }
 }

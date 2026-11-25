@@ -10,6 +10,7 @@ struct PersonSheet: View {
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Person.sortOrder) private var people: [Person]
     @State private var name = ""
+    @State private var askDiscard = false
 
     private var trimmed: String { name.trimmingCharacters(in: .whitespaces) }
 
@@ -17,7 +18,7 @@ struct PersonSheet: View {
         let p = Palette.of(scheme)
         VStack(spacing: 18) {
             HStack {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { if trimmed.isEmpty { dismiss() } else { askDiscard = true } }
                     .buttonStyle(.plain)
                     .font(.outfit(15, .semibold))
                     .padding(.horizontal, 14).frame(height: 34)
@@ -63,6 +64,7 @@ struct PersonSheet: View {
         .background(p.bg)
         .presentationDetents([.height(380)])
         .presentationDragIndicator(.visible)
+        .discardGuard(dirty: !trimmed.isEmpty, asking: $askDiscard) { dismiss() }
     }
 
     private func add() {

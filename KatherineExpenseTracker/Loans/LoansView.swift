@@ -5,6 +5,8 @@ import SwiftData
 /// Tapping a row opens that loan's transactions.
 struct LoansView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.inSplitDetail) private var inSplitDetail
+    @Environment(\.openDetail) private var openDetail
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Account.sortOrder) private var accounts: [Account]
 
@@ -81,14 +83,18 @@ struct LoansView: View {
 
     private func header(_ p: Palette) -> some View {
         HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 36, height: 36)
-                    .background(p.chip, in: .circle)
+            if inSplitDetail {
+                Color.clear.frame(width: 36, height: 36)
+            } else {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                        .background(p.chip, in: .circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
             Spacer()
             Text("Loans").font(.outfit(17, .bold))
             Spacer()
@@ -121,7 +127,7 @@ struct LoansView: View {
             VStack(spacing: 0) {
                 ForEach(Array(list.enumerated()), id: \.element.id) { i, a in
                     if i > 0 { Rectangle().fill(scheme == .dark ? p.chip : p.bg).frame(height: 1) }
-                    Button { viewing = a } label: { row(a, color, p) }
+                    Button { if let openDetail { openDetail(.account(a.persistentModelID)) } else { viewing = a } } label: { row(a, color, p) }
                         .buttonStyle(.plain)
                         .accessibilityHint("Show transactions")
                 }

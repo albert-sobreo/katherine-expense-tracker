@@ -8,12 +8,15 @@ struct EntryView: View {
     var editing: Entry? = nil
     /// An earlier entry to repeat: same type, amount, accounts and note, dated today, saved as a new entry.
     var template: Entry? = nil
+    /// Opened from an account's transactions: start with that account picked.
+    var preselect: Account? = nil
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Person.sortOrder) private var people: [Person]
     @Query(sort: \Account.sortOrder) private var accounts: [Account]
+    @Query(sort: \Entry.date, order: .reverse) private var pastEntries: [Entry]
 
     @State private var kind: EntryKind = .expense
     @State private var amountText = ""
@@ -31,6 +34,9 @@ struct EntryView: View {
     /// Last accounts used per entry type, so the next entry starts where the last one left off.
     @AppStorage("lastAccounts") private var lastAccountsJSON = ""
     @State private var confirmDelete = false
+    @State private var askDiscard = false
+    /// An edited or repeated entry as it opened, to tell whether anything changed.
+    @State private var baseline: String?
     @State private var showWheel = false
     /// Width of the typed amount at full size, and the width the field has. Used to shrink the amount to fit.
     @State private var amountNaturalWidth: CGFloat = 0
@@ -104,6 +110,7 @@ struct EntryView: View {
                 VStack(alignment: .leading, spacing: 22) {
                     header(p)
                     hero
+                    dateCard(p)
                     kindSwitch(p)
                     AccountRail(label: labels.from, groups: fromGroups, selection: $fromID) {
                         formChoice = .init(person: nil, payee: kind == .income)
@@ -111,7 +118,6 @@ struct EntryView: View {
                     AccountRail(label: labels.to, groups: toGroups, selection: $toID) {
                         formChoice = .init(person: nil, payee: kind == .expense)
                     }
-                    dateCard(p)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
@@ -120,7 +126,7 @@ struct EntryView: View {
             .scrollDismissesKeyboard(.interactively)
 
             HStack(spacing: 10) {
-                Button { dismiss() } label: {
+                Button { if dirty { askDiscard = true } else { dismiss() } } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 17, weight: .semibold))
                         .frame(width: 56, height: 56)
@@ -157,12 +163,14 @@ struct EntryView: View {
                 amountFocused = true
             } else {
                 applyDefaults()
+                if let preselect { pick(preselect) }
                 amountFocused = true
             }
+            baseline = fingerprint
         }
         .sensoryFeedback(.success, trigger: savedCount)
-        // A swipe down closes the sheet, but not while a new amount is typed and unsaved.
-        .interactiveDismissDisabled(editing == nil && !amountText.isEmpty)
+        // A swipe down closes the sheet, but not while there are unsaved changes.
+        .discardGuard(dirty: dirty, asking: $askDiscard) { dismiss() }
         .onChange(of: toID) { _, id in
             // Lending to someone from Expense: loans move money, they aren't spending.
             if kind == .expense, account(id)?.isLoan == true { switchToTransfer() }
@@ -273,7 +281,10 @@ struct EntryView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 14).frame(height: 34)
                     .background(.white.opacity(0.1), in: .capsule)
+                noteChips
             } else {
+                // Add note, with past notes right beside it so one tap sets a note.
+                HStack(spacing: 6) {
                 Button {
                     withAnimation { showNote = true }
                     // Focus once the field exists, so she can type right away.
@@ -289,6 +300,9 @@ struct EntryView: View {
                         .background(.white.opacity(0.1), in: .capsule)
                 }
                 .buttonStyle(.plain)
+                .fixedSize()
+                noteChips
+                }
             }
         }
         .padding(.horizontal, 18)
@@ -364,9 +378,9 @@ struct EntryView: View {
                 DatePicker("Date", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.wheel)
                     .labelsHidden()
+                    // Natural wheel height: squeezing it to a shorter frame only hid the edges,
+                    // and the hidden part still caught taps over the chips above.
                     .frame(maxWidth: .infinity)
-                    .frame(height: 140)
-                    .clipped()
                     .background(p.card, in: .rect(cornerRadius: 22))
                     .transition(.opacity.combined(with: .move(edge: .top)))
                 #else
@@ -473,6 +487,80 @@ struct EntryView: View {
         }
     }
 
+    /// Starts with this account picked: a payee as Paid to, a loan as Transfer to, any other account as Pay from.
+    private func pick(_ a: Account) {
+        let target: EntryKind = a.isLoan ? .transfer : .expense
+        if kind != target {
+            skipDefaults = true
+            kind = target
+            applyDefaults()
+        }
+        let id = a.persistentModelID
+        if a.isPayee || a.isLoan {
+            toID = id
+            if fromID == id { fromID = nil }
+            if fromID == nil { fromID = mine.first(where: { $0.persistentModelID != id })?.persistentModelID }
+        } else {
+            fromID = id
+        }
+    }
+
+    /// Notes used before, best first: ones used with the picked payee or account, then the most used, then the newest.
+    /// Narrowed to what's typed so far.
+    private var noteSuggestions: [String] {
+        let counterpart = kind == .income ? fromID : toID
+        let typed = note.trimmingCharacters(in: .whitespaces).lowercased()
+        var stats: [String: (count: Int, match: Int, last: Date)] = [:]
+        for e in pastEntries.prefix(1500) {
+            let text = e.note.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else { continue }
+            let other = e.kind == .income ? e.from : e.to
+            let match = counterpart != nil && other?.persistentModelID == counterpart ? 1 : 0
+            let old = stats[text]
+            stats[text] = ((old?.count ?? 0) + 1, max(old?.match ?? 0, match), max(old?.last ?? .distantPast, e.date))
+        }
+        return stats
+            .filter { typed.isEmpty || ($0.key.lowercased().contains(typed) && $0.key.lowercased() != typed) }
+            .sorted { a, b in
+                if a.value.match != b.value.match { return a.value.match > b.value.match }
+                if a.value.count != b.value.count { return a.value.count > b.value.count }
+                return a.value.last > b.value.last
+            }
+            .prefix(10)
+            .map(\.key)
+    }
+
+    /// Past notes as tap-to-fill chips: beside Add note, then under the note field once it is open.
+    @ViewBuilder
+    private var noteChips: some View {
+        let list = noteSuggestions
+        if !list.isEmpty {
+            ScrollView(.horizontal) {
+                HStack(spacing: 6) {
+                    ForEach(list, id: \.self) { text in
+                        Button {
+                            note = text
+                            noteFocused = false
+                            if !showNote { withAnimation { showNote = true } }
+                        } label: {
+                            Text(text)
+                                .font(.outfit(12, .medium))
+                                .lineLimit(1)
+                                .foregroundStyle(.white.opacity(0.85))
+                                .padding(.horizontal, 12).frame(height: 28)
+                                .background(.white.opacity(0.08), in: .capsule)
+                                .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 2)
+            }
+            .scrollIndicators(.hidden)
+            .transition(.opacity)
+        }
+    }
+
     /// Keeps both picks and flips the type to Transfer, with a short note why.
     private func switchToTransfer() {
         if kind == .expense, fromID == nil { fromID = mine.first?.persistentModelID }
@@ -491,6 +579,20 @@ struct EntryView: View {
     private func account(_ id: PersistentIdentifier?) -> Account? {
         guard let id else { return nil }
         return accounts.first { $0.persistentModelID == id }
+    }
+
+    private var fingerprint: String {
+        [String(describing: kind), amountText, note, fromID.map { "\($0)" } ?? "", toID.map { "\($0)" } ?? "",
+         String(date.timeIntervalSinceReferenceDate)].joined(separator: "|")
+    }
+
+    /// A new entry counts as changed once an amount or note is typed; an edited or repeated one once anything differs.
+    private var dirty: Bool {
+        // After Save & new, a repeated entry is a fresh blank one too.
+        if editing == nil && (template == nil || savedCount > 0) {
+            return !amountText.isEmpty || !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return baseline != nil && fingerprint != baseline
     }
 
     /// Fills the screen from the entry being edited.

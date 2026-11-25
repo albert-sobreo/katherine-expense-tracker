@@ -8,6 +8,7 @@ struct AnalyticsView: View {
     @State var month: Date
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.inSplitDetail) private var inSplitDetail
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Entry.date) private var entries: [Entry]
 
@@ -158,14 +159,18 @@ struct AnalyticsView: View {
 
     private func header(_ p: Palette) -> some View {
         HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 36, height: 36)
-                    .background(p.chip, in: .circle)
+            if inSplitDetail {
+                Color.clear.frame(width: 36, height: 36)
+            } else {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .semibold))
+                        .frame(width: 36, height: 36)
+                        .background(p.chip, in: .circle)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Close")
             Spacer()
             Text("Analytics").font(.outfit(17, .bold))
             Spacer()

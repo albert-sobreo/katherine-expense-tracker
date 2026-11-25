@@ -12,14 +12,19 @@ struct PersonEditSheet: View {
     @State private var name = ""
     @State private var order: [Account] = []
     @State private var confirmDelete = false
+    @State private var askDiscard = false
 
     private var trimmed: String { name.trimmingCharacters(in: .whitespaces) }
+    private var originalOrder: [Account] { (person.accounts ?? []).sorted { $0.sortOrder < $1.sortOrder } }
+    private var dirty: Bool {
+        (!person.isMe && trimmed != person.name) || order.map(\.persistentModelID) != originalOrder.map(\.persistentModelID)
+    }
 
     var body: some View {
         let p = Palette.of(scheme)
         VStack(spacing: 16) {
             HStack {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") { if dirty { askDiscard = true } else { dismiss() } }
                     .buttonStyle(.plain)
                     .font(.outfit(15, .semibold))
                     .padding(.horizontal, 14).frame(height: 34)
@@ -105,8 +110,9 @@ struct PersonEditSheet: View {
         .presentationDragIndicator(.visible)
         .onAppear {
             name = person.name
-            order = (person.accounts ?? []).sorted { $0.sortOrder < $1.sortOrder }
+            order = originalOrder
         }
+        .discardGuard(dirty: dirty, asking: $askDiscard) { dismiss() }
         .confirmationDialog("Delete \(person.name)?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 context.delete(person)
