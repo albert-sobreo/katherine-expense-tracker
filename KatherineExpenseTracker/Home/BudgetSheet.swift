@@ -34,12 +34,13 @@ struct BudgetSheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            Text("How much Kath plans to spend each month. Home shows how much is left.")
+            Text("How much you plan to spend each month. Home shows how much is left.")
                 .font(.outfit(14)).foregroundStyle(p.muted)
 
             HStack(spacing: 8) {
                 Text("₱").font(.barlow(30, .medium)).foregroundStyle(p.muted)
                 TextField("0", text: $text)
+                    .textFieldStyle(.plain)
                     .font(.barlow(44))
                     .monospacedDigit()
                     .decimalPad()

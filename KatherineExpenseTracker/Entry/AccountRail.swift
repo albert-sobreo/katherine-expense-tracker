@@ -88,6 +88,8 @@ struct AccountRail: View {
     let label: String
     let groups: [RailGroup]
     @Binding var selection: PersistentIdentifier?
+    /// Shows "Optional" on the right while nothing is picked (Paid to, Received from).
+    var optional = false
     var onAdd: () -> Void
 
     @Environment(\.colorScheme) private var scheme
@@ -126,6 +128,10 @@ struct AccountRail: View {
                     }
                     .foregroundStyle(p.muted)
                     .lineLimit(1)
+                } else if optional {
+                    Text("Optional")
+                        .font(.outfit(12, .medium))
+                        .foregroundStyle(p.muted)
                 }
             }
             .padding(.horizontal, 4)

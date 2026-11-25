@@ -39,6 +39,9 @@ extension Account {
 
     var isMine: Bool { owner?.isMe == true && !isPayee && !isLoan }
 
+    /// A bank, wallet or card picked for Home (Settings > Accounts on Home). Payees and loans never count.
+    var countsOnHome: Bool { !isPayee && !isLoan && showOnHome }
+
     /// "Owes you", "You owe" or "Even" for a loan tile.
     var loanStatus: String {
         let b = balanceCentavos
@@ -46,24 +49,37 @@ extension Account {
     }
 }
 
-/// Kath's own numbers for a month. Other people's accounts are tracked but never counted here.
+extension Entry {
+    /// Spending for Home: paid from an account on Home to somewhere that isn't one
+    /// (money moved between two Home accounts is neither spent nor earned).
+    var countsAsExpense: Bool { kind == .expense && from?.countsOnHome == true && to?.countsOnHome != true }
+    /// Income for Home: into an account on Home from somewhere that isn't one.
+    var countsAsIncome: Bool { kind == .income && to?.countsOnHome == true && from?.countsOnHome != true }
+}
+
+/// Home's numbers for a month, from the accounts picked for Home (all of them unless changed in Settings).
 struct MonthTotals {
     var income = 0
     var expense = 0
 
     init(entries: [Entry], month: Date, calendar: Calendar = .current) {
         for e in entries where calendar.isDate(e.date, equalTo: month, toGranularity: .month) {
-            switch e.kind {
-            case .income where e.to?.isMine == true: income += e.amountCentavos
-            case .expense where e.from?.isMine == true: expense += e.amountCentavos
-            default: break
-            }
+            if e.countsAsIncome { income += e.amountCentavos }
+            if e.countsAsExpense { expense += e.amountCentavos }
         }
     }
 
-    /// Net balance: everything in Kath's own accounts minus what she owes on her cards,
+    /// Net balance: everything in the Home accounts minus what's owed on cards among them,
     /// plus loans (money lent is still hers, money borrowed is debt). Not month-bound.
     static func netBalance(_ accounts: [Account]) -> Int {
-        accounts.filter { $0.isMine || $0.isLoan }.reduce(0) { $0 + $1.balanceCentavos }
+        let home = accounts.filter { $0.countsOnHome || $0.isLoan }.reduce(0) { $0 + $1.balanceCentavos }
+        // Loan transfers with someone whose account isn't on Home: the money moved is already in the
+        // total, so add the debt too (lent money is still hers, borrowed money is owed).
+        var debts = 0
+        for a in accounts where a.countsOnHome {
+            for e in a.outgoing ?? [] where e.loanPerson != nil && e.to?.countsOnHome != true { debts += e.amountCentavos }
+            for e in a.incoming ?? [] where e.loanPerson != nil && e.from?.countsOnHome != true { debts -= e.amountCentavos }
+        }
+        return home + debts
     }
 }

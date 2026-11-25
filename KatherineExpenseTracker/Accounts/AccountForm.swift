@@ -313,7 +313,7 @@ struct AccountForm: View {
             VStack(spacing: 0) {
                 HStack {
                     Text("Name").font(.outfit(14, .medium))
-                    TextField(isPayee ? "Meralco" : (isLoan ? "Mama" : "BDO Savings"), text: $name)
+                    TextField(isPayee ? "Meralco" : (isLoan ? "Brother" : "BDO Savings"), text: $name)
                         .font(.outfit(15, .semibold))
                         .multilineTextAlignment(.trailing)
                 }

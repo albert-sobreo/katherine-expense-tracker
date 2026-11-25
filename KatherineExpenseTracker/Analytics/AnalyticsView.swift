@@ -22,9 +22,9 @@ struct AnalyticsView: View {
 
     private func startOfMonth(_ d: Date) -> Date { cal.dateInterval(of: .month, for: d)?.start ?? d }
 
-    /// Kath's expenses (paid from her own accounts) and income (into her own accounts).
-    private var myExpenses: [Entry] { entries.filter { $0.kind == .expense && $0.from?.isMine == true } }
-    private var myIncome: [Entry] { entries.filter { $0.kind == .income && $0.to?.isMine == true } }
+    /// Expenses and income of the accounts on Home, same as Home's totals.
+    private var myExpenses: [Entry] { entries.filter(\.countsAsExpense) }
+    private var myIncome: [Entry] { entries.filter(\.countsAsIncome) }
 
     private func inMonth(_ list: [Entry], _ m: Date) -> [Entry] {
         list.filter { cal.isDate($0.date, equalTo: m, toGranularity: .month) }

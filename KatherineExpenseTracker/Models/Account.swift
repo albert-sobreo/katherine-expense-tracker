@@ -26,6 +26,9 @@ final class Account {
     /// A loan with one person (the owner). One tile per person nets everything out:
     /// above zero they owe Kath, below zero Kath owes them. Lending and paybacks are transfers.
     var isLoan: Bool = false
+    /// Shown on Home and counted in its totals (Spent, Income, Net balance), the widget and Analytics.
+    /// On for every account by default; turned off in Settings > Accounts on Home.
+    var showOnHome: Bool = true
     /// Balance when the account was added, in centavos. Negative for what's already owed on a card.
     var openingCentavos: Int = 0
     var sortOrder: Int = 0

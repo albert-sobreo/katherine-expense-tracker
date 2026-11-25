@@ -29,6 +29,15 @@ struct EntriesView: View {
     /// Account view only: the month shown. Nil shows all time.
     @State private var pickedMonth: Date? = EntriesView.startOfMonth(.now)
     @State private var showMonthSheet = false
+    /// The last deleted row, kept for a few seconds so it can be undone.
+    @State private var undo: Deleted?
+
+    private struct Deleted: Equatable {
+        let id = UUID()
+        let amount: Int, kind: EntryKind, date: Date, note: String, createdAt: Date
+        let from: Account?, to: Account?
+        static func == (a: Deleted, b: Deleted) -> Bool { a.id == b.id }
+    }
 
     /// Dates of this account's entries, for the month picker.
     private var accountEntryDates: [Date] {
@@ -65,15 +74,16 @@ struct EntriesView: View {
         }
     }
 
-    /// Money into this account (account view) or Kath's income (month view).
+    /// Money into the account (account view, or the month view narrowed to one account),
+    /// otherwise income counted the same way as Home's.
     private func isIn(_ e: Entry) -> Bool {
-        if let account { return e.to?.persistentModelID == account.persistentModelID }
-        return e.kind == .income
+        if let a = account ?? accountFilter { return e.to?.persistentModelID == a.persistentModelID }
+        return e.countsAsIncome
     }
 
     private func isOut(_ e: Entry) -> Bool {
-        if let account { return e.from?.persistentModelID == account.persistentModelID }
-        return e.kind == .expense
+        if let a = account ?? accountFilter { return e.from?.persistentModelID == a.persistentModelID }
+        return e.countsAsExpense
     }
 
     private var moneyIn: Int { rows.filter(isIn).reduce(0) { $0 + $1.amountCentavos } }
@@ -104,6 +114,7 @@ struct EntriesView: View {
         .padding(.bottom, 12)
         .foregroundStyle(p.fg)
         .background(p.bg)
+        .overlay(alignment: .bottom) { if undo != nil { undoToast(p) } }
         #if os(iOS)
         .sheet(item: $editingAccount) { AccountForm(editing: $0) }
         .sheet(isPresented: $showMonthSheet) {
@@ -356,12 +367,9 @@ struct EntriesView: View {
                     ForEach(Array(list.enumerated()), id: \.element.persistentModelID) { i, e in
                         let firstOfDay = i == 0 || !cal.isDate(e.date, inSameDayAs: list[i - 1].date)
                         let lastOfDay = i == list.count - 1 || !cal.isDate(e.date, inSameDayAs: list[i + 1].date)
-                        SwipeToDelete(onDelete: { delete(e) }) {
-                            Button { editing = e } label: {
-                                row(e, firstOfDay: firstOfDay, lastOfDay: lastOfDay,
-                                    bg: bands[i] == 1 ? stripe : p.card, grid: grid, p: p)
-                            }
-                            .buttonStyle(.plain)
+                        SwipeToDelete(onDelete: { delete(e) }, onTap: { editing = e }) {
+                            row(e, firstOfDay: firstOfDay, lastOfDay: lastOfDay,
+                                bg: bands[i] == 1 ? stripe : p.card, grid: grid, p: p)
                             .accessibilityHint("Edit")
                             .contextMenu {
                                 Button("Edit", systemImage: "pencil") { editing = e }
@@ -422,7 +430,12 @@ struct EntriesView: View {
 
     private func row(_ e: Entry, firstOfDay: Bool, lastOfDay: Bool, bg: Color, grid: Color, p: Palette) -> some View {
         let text = EntriesView.text(for: e)
-        let other: Account? = e.kind == .income ? e.from : e.to
+        // Expenses take the color of the account paid from; income the payer's, transfers the destination's.
+        let other: Account? = switch e.kind {
+        case .expense: e.from ?? e.to
+        case .income: e.from
+        case .transfer: e.to
+        }
         // In an account's view, the sign is from the account's side: money in +, money out −.
         let signed = account != nil
         let amount: String
@@ -484,10 +497,47 @@ struct EntriesView: View {
     }
 
     private func delete(_ e: Entry) {
+        let gone = Deleted(amount: e.amountCentavos, kind: e.kind, date: e.date, note: e.note,
+                           createdAt: e.createdAt, from: e.from, to: e.to)
         withAnimation(.easeOut(duration: 0.2)) {
             context.delete(e)
             try? context.save()
+            undo = gone
         }
+        Task {
+            try? await Task.sleep(for: .seconds(4))
+            withAnimation(.easeOut) { if undo == gone { undo = nil } }
+        }
+    }
+
+    /// Puts the last deleted row back.
+    private func restore() {
+        guard let d = undo else { return }
+        let e = Entry(amountCentavos: d.amount, kind: d.kind, date: d.date,
+                      from: d.from.flatMap { $0.isDeleted ? nil : $0 }, to: d.to.flatMap { $0.isDeleted ? nil : $0 },
+                      note: d.note)
+        e.createdAt = d.createdAt
+        withAnimation(.easeOut(duration: 0.2)) {
+            context.insert(e)
+            try? context.save()
+            undo = nil
+        }
+    }
+
+    private func undoToast(_ p: Palette) -> some View {
+        HStack(spacing: 14) {
+            Text("Deleted \(Money.peso(undo?.amount ?? 0))").font(.outfit(14, .semibold))
+            Button("Undo", action: restore)
+                .buttonStyle(.plain)
+                .font(.outfit(14, .bold))
+                .underline()
+        }
+        .foregroundStyle(p.bg)
+        .padding(.horizontal, 18).frame(height: 44)
+        .background(p.fg, in: .capsule)
+        .shadow(color: .black.opacity(0.25), radius: 12, y: 8)
+        .padding(.bottom, 20)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     /// Shown in the sheet when there are no rows: why, and what to do.
@@ -546,7 +596,7 @@ struct EntriesView: View {
             sub = describe(e.to)
         case .transfer:
             item = "To \(describe(e.to))"
-            sub = "From \(describe(e.from))"
+            sub = (e.loanPerson != nil ? "Loan · " : "") + "From \(describe(e.from))"
         }
         if !e.note.isEmpty && item != e.note { sub += " · \(e.note)" }
         return (item, sub)

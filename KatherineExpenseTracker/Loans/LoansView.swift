@@ -9,25 +9,32 @@ struct LoansView: View {
     @Environment(\.openDetail) private var openDetail
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Account.sortOrder) private var accounts: [Account]
+    @Query(sort: \Entry.date, order: .reverse) private var entries: [Entry]
 
     @State private var viewing: Account?
+    @State private var viewingLine: LoanLine.Ref?
     @State private var adding = false
 
-    private var loans: [Account] { accounts.filter(\.isLoan) }
-    private var owesYou: [Account] {
-        loans.filter { $0.balanceCentavos > 0 }.sorted { $0.balanceCentavos > $1.balanceCentavos }
+    private var loans: [LoanLine] { LoanLine.all(accounts: accounts, entries: entries) }
+    private var owesYou: [LoanLine] { loans.filter { $0.balance > 0 } }
+    private var youOwe: [LoanLine] { loans.filter { $0.balance < 0 } }
+    private var even: [LoanLine] { loans.filter { $0.balance == 0 } }
+
+    /// A plain loan tile opens its transactions; a person (with or without a tile) opens their loan list.
+    private func open(_ l: LoanLine) {
+        if l.person == nil, let tile = l.tile {
+            if let openDetail { openDetail(.account(tile.persistentModelID)) } else { viewing = tile }
+        } else {
+            viewingLine = LoanLine.Ref(line: l)
+        }
     }
-    private var youOwe: [Account] {
-        loans.filter { $0.balanceCentavos < 0 }.sorted { $0.balanceCentavos < $1.balanceCentavos }
-    }
-    private var even: [Account] { loans.filter { $0.balanceCentavos == 0 } }
 
     var body: some View {
         let p = Palette.of(scheme)
         let green = Color(hex: scheme == .dark ? "#34D399" : "#059669")
         let rose = Color(hex: scheme == .dark ? "#FB7185" : "#E11D48")
-        let inTotal = owesYou.reduce(0) { $0 + $1.balanceCentavos }
-        let outTotal = -youOwe.reduce(0) { $0 + $1.balanceCentavos }
+        let inTotal = owesYou.reduce(0) { $0 + $1.balance }
+        let outTotal = -youOwe.reduce(0) { $0 + $1.balance }
         VStack(spacing: 0) {
             header(p)
             ScrollView {
@@ -43,7 +50,7 @@ struct LoansView: View {
                     if loans.isEmpty {
                         VStack(spacing: 8) {
                             Text("No loans yet").font(.outfit(17, .semibold))
-                            Text("Add one for each person you lend to or borrow from. Then log lending and paybacks as Transfers to or from their tile.")
+                            Text("Turn on \"This is a loan\" on a Transfer with someone's account, or add a loan for someone without one and log Transfers to or from it.")
                                 .font(.outfit(14)).foregroundStyle(p.muted)
                                 .multilineTextAlignment(.center)
                         }
@@ -74,6 +81,7 @@ struct LoansView: View {
         .foregroundStyle(p.fg)
         .background(p.bg)
         .sheet(isPresented: $adding) { AccountForm(loan: true) }
+        .sheet(item: $viewingLine) { LoanDetailView(ref: $0) }
         #if os(iOS)
         .sheet(item: $viewing) { EntriesView(account: $0) }
         #else
@@ -121,13 +129,13 @@ struct LoansView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func section(_ title: String, _ list: [Account], _ color: Color, _ p: Palette) -> some View {
+    private func section(_ title: String, _ list: [LoanLine], _ color: Color, _ p: Palette) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel(title).padding(.horizontal, 4)
             VStack(spacing: 0) {
                 ForEach(Array(list.enumerated()), id: \.element.id) { i, a in
                     if i > 0 { Rectangle().fill(scheme == .dark ? p.chip : p.bg).frame(height: 1) }
-                    Button { if let openDetail { openDetail(.account(a.persistentModelID)) } else { viewing = a } } label: { row(a, color, p) }
+                    Button { open(a) } label: { row(a, color, p) }
                         .buttonStyle(.plain)
                         .accessibilityHint("Show transactions")
                 }
@@ -136,8 +144,8 @@ struct LoansView: View {
         }
     }
 
-    private func row(_ a: Account, _ color: Color, _ p: Palette) -> some View {
-        let last = ((a.outgoing ?? []) + (a.incoming ?? [])).map(\.date).max()
+    private func row(_ a: LoanLine, _ color: Color, _ p: Palette) -> some View {
+        let last = a.lastDate
         return HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 10)
                 .fill(Color(hex: a.colorHex))
@@ -153,7 +161,7 @@ struct LoansView: View {
                     .font(.outfit(12)).foregroundStyle(p.muted)
             }
             Spacer(minLength: 8)
-            Text(Money.peso(abs(a.balanceCentavos)))
+            Text(Money.peso(abs(a.balance)))
                 .font(.barlow(20))
                 .monospacedDigit()
                 .foregroundStyle(color)

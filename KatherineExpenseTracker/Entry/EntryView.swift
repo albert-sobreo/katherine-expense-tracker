@@ -38,6 +38,8 @@ struct EntryView: View {
     /// An edited or repeated entry as it opened, to tell whether anything changed.
     @State private var baseline: String?
     @State private var showWheel = false
+    /// Transfer between Kath and someone else's account: lent or borrowed, shown on the Loans screen.
+    @State private var isLoan = false
     /// Width of the typed amount at full size, and the width the field has. Used to shrink the amount to fit.
     @State private var amountNaturalWidth: CGFloat = 0
     @State private var amountFieldWidth: CGFloat = 0
@@ -106,24 +108,36 @@ struct EntryView: View {
     var body: some View {
         let p = Palette.of(scheme)
         VStack(spacing: 0) {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     header(p)
                     hero
                     dateCard(p)
                     kindSwitch(p)
-                    AccountRail(label: labels.from, groups: fromGroups, selection: $fromID) {
+                    AccountRail(label: labels.from, groups: fromGroups, selection: $fromID, optional: kind == .income) {
                         formChoice = .init(person: nil, payee: kind == .income)
                     }
-                    AccountRail(label: labels.to, groups: toGroups, selection: $toID) {
+                    AccountRail(label: labels.to, groups: toGroups, selection: $toID, optional: kind == .expense) {
                         formChoice = .init(person: nil, payee: kind == .expense)
                     }
+                    if let person = loanOther?.owner { loanToggle(person, p).id("loanToggle") }
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
                 .padding(.bottom, 24)
             }
             .scrollDismissesKeyboard(.interactively)
+            .onChange(of: loanOther?.persistentModelID) { old, new in
+                // The loan switch appears under the rails, often below the fold: bring it into view.
+                // Not when an existing loan opens with the switch already on.
+                guard new != nil, old == nil, !isLoan else { return }
+                Task {
+                    try? await Task.sleep(for: .milliseconds(180))
+                    withAnimation(.easeOut(duration: 0.3)) { proxy.scrollTo("loanToggle", anchor: .bottom) }
+                }
+            }
+            }
 
             HStack(spacing: 10) {
                 Button { if dirty { askDiscard = true } else { dismiss() } } label: {
@@ -244,6 +258,7 @@ struct EntryView: View {
                     .foregroundStyle(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .leading)
                 TextField("", text: $amountText, prompt: Text("0").foregroundStyle(.white.opacity(0.28)))
+                    .textFieldStyle(.plain)
                     .font(.barlow(size, .semibold))
                     .monospacedDigit()
                     .multilineTextAlignment(.center)
@@ -352,6 +367,34 @@ struct EntryView: View {
     }
 
     /// Today / Yesterday / a picked date as chips. The wheel opens only for other days.
+    /// On a Transfer between one of Kath's accounts and someone else's, that other account.
+    private var loanOther: Account? {
+        guard kind == .transfer, let f = account(fromID), let t = account(toID) else { return nil }
+        func someoneElses(_ a: Account) -> Bool { !a.isPayee && !a.isLoan && a.owner != nil && a.owner?.isMe == false }
+        if f.isMine && someoneElses(t) { return t }
+        if t.isMine && someoneElses(f) { return f }
+        return nil
+    }
+
+    private func loanToggle(_ person: Person, _ p: Palette) -> some View {
+        let lending = account(toID)?.persistentModelID == loanOther?.persistentModelID
+        return Toggle(isOn: $isLoan.animation(.easeOut(duration: 0.15))) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("This is a loan").font(.outfit(15, .semibold))
+                Text(isLoan ? (lending ? "\(person.name) will owe you this" : "You'll owe \(person.name) this")
+                            : "Lent or borrowed? It shows on the Loans screen")
+                    .font(.outfit(12)).foregroundStyle(p.muted)
+            }
+        }
+        .tint(p.fg)
+        .padding(.horizontal, 16)
+        .frame(height: 62)
+        .background(p.card, in: .rect(cornerRadius: 18))
+        .transition(.opacity)
+    }
+
+    private static let wheelAnimation = Animation.spring(response: 0.32, dampingFraction: 0.9)
+
     private func dateCard(_ p: Palette) -> some View {
         let cal = Calendar.current
         let isToday = cal.isDateInToday(date)
@@ -362,15 +405,15 @@ struct EntryView: View {
             HStack(spacing: 8) {
                 dateChip("Today", on: isToday, p) {
                     date = .now
-                    showWheel = false
+                    withAnimation(Self.wheelAnimation) { showWheel = false }
                 }
                 dateChip("Yesterday", on: isYesterday, p) {
                     date = cal.date(byAdding: .day, value: -1, to: .now) ?? .now
-                    showWheel = false
+                    withAnimation(Self.wheelAnimation) { showWheel = false }
                 }
                 dateChip(other ? date.formatted(.dateTime.month(.abbreviated).day().year()) : "Pick date",
                          on: other || showWheel, p, icon: "calendar") {
-                    withAnimation(.easeOut(duration: 0.2)) { showWheel.toggle() }
+                    withAnimation(Self.wheelAnimation) { showWheel.toggle() }
                 }
             }
             if showWheel {
@@ -382,7 +425,10 @@ struct EntryView: View {
                     // and the hidden part still caught taps over the chips above.
                     .frame(maxWidth: .infinity)
                     .background(p.card, in: .rect(cornerRadius: 22))
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    // Grows out of the chips and fades in; just fades out.
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.94, anchor: .top)),
+                        removal: .opacity.animation(.easeOut(duration: 0.12))))
                 #else
                 DatePicker("Date", selection: $date, displayedComponents: .date)
                     .labelsHidden()
@@ -467,8 +513,9 @@ struct EntryView: View {
             let fromOK = last.from.map { id in fromGroups.contains { $0.accounts.contains { $0.persistentModelID == id } } } ?? false
             let toOK = last.to.map { id in toGroups.contains { $0.accounts.contains { $0.persistentModelID == id } } } ?? false
             if fromOK || toOK {
-                fromID = fromOK ? last.from : nil
-                toID = toOK ? last.to : nil
+                // The other side (Paid to on Expense, Received from on Income) is picked fresh every time.
+                fromID = fromOK && kind != .income ? last.from : nil
+                toID = toOK && kind != .expense ? last.to : nil
                 if kind == .transfer, fromID == toID { toID = nil }
                 if (kind == .income ? toID != nil : fromID != nil) { return }
             }
@@ -582,7 +629,7 @@ struct EntryView: View {
     }
 
     private var fingerprint: String {
-        [String(describing: kind), amountText, note, fromID.map { "\($0)" } ?? "", toID.map { "\($0)" } ?? "",
+        [String(describing: kind), String(isLoan), amountText, note, fromID.map { "\($0)" } ?? "", toID.map { "\($0)" } ?? "",
          String(date.timeIntervalSinceReferenceDate)].joined(separator: "|")
     }
 
@@ -608,6 +655,7 @@ struct EntryView: View {
         fromID = e.from?.persistentModelID
         toID = e.to?.persistentModelID
         date = e.date
+        isLoan = e.isLoan
     }
 
     private func save() {
@@ -619,6 +667,7 @@ struct EntryView: View {
             editing.from = account(fromID)
             editing.to = account(toID)
             editing.note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+            editing.isLoan = isLoan && loanOther != nil
             try? context.save()
             dismiss()
             return
@@ -629,6 +678,7 @@ struct EntryView: View {
         let entry = Entry(amountCentavos: amount, kind: kind, date: date,
                           from: account(fromID), to: account(toID),
                           note: note.trimmingCharacters(in: .whitespacesAndNewlines))
+        entry.isLoan = isLoan && loanOther != nil
         context.insert(entry)
         try? context.save()
 
@@ -637,6 +687,8 @@ struct EntryView: View {
         amountText = ""
         note = ""
         showNote = false
+        if kind == .expense { toID = nil }
+        if kind == .income { fromID = nil }
         amountFocused = true
         Task {
             try? await Task.sleep(for: .seconds(1.8))

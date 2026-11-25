@@ -63,7 +63,9 @@ enum CSV {
         for e in entries.sorted(by: { $0.date < $1.date }) {
             let c = e.amountCentavos
             let amount = c % 100 == 0 ? String(c / 100) : String(format: "%.2f", Double(c) / 100)
-            let cols = [fmt.string(from: e.date), e.kind.rawValue.capitalized, amount,
+            // Loan transfers export as "Loan" so they come back as loans on import.
+            let type = e.kind == .transfer && e.isLoan ? "Loan" : e.kind.rawValue.capitalized
+            let cols = [fmt.string(from: e.date), type, amount,
                         e.from.map { EntriesView.describe($0) } ?? "", e.to.map { EntriesView.describe($0) } ?? "", e.note]
             lines.append(cols.map(escape).joined(separator: ","))
         }
@@ -76,11 +78,16 @@ enum CSV {
         var imported = 0
         var createdAccounts: [String] = []
         var skippedLines: [Int] = []
+        /// Rows already in the app (same day, type, amount, accounts and note), left out.
+        var duplicates = 0
 
         var summary: String {
             var parts = ["Imported \(imported) \(imported == 1 ? "entry" : "entries")."]
             if !createdAccounts.isEmpty {
                 parts.append("Added \(createdAccounts.count) new: \(createdAccounts.prefix(8).joined(separator: ", "))\(createdAccounts.count > 8 ? "…" : "").")
+            }
+            if duplicates > 0 {
+                parts.append("Left out \(duplicates) row\(duplicates == 1 ? "" : "s") already in the app.")
             }
             if !skippedLines.isEmpty {
                 parts.append("Skipped \(skippedLines.count) row\(skippedLines.count == 1 ? "" : "s") that couldn't be read (line \(skippedLines.prefix(10).map(String.init).joined(separator: ", "))\(skippedLines.count > 10 ? "…" : "")).")
@@ -132,6 +139,20 @@ enum CSV {
         }
         existing.forEach(remember)
 
+        // Entries already in the app, counted by what they contain, so importing the same file twice adds nothing.
+        // Counted rather than just noted: two identical coffees on one day in the file still both come in
+        // if the app had none.
+        let cal = Calendar.current
+        func key(_ date: Date, _ kind: EntryKind, _ amount: Int, _ from: Account?, _ to: Account?, _ note: String) -> String {
+            let f = from.map { "\($0.persistentModelID.hashValue)" } ?? "-"
+            let t = to.map { "\($0.persistentModelID.hashValue)" } ?? "-"
+            return "\(cal.startOfDay(for: date).timeIntervalSince1970)|\(kind.rawValue)|\(amount)|\(f)|\(t)|\(note.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+        }
+        var already: [String: Int] = [:]
+        for e in (try? context.fetch(FetchDescriptor<Entry>())) ?? [] {
+            already[key(e.date, e.kind, e.amountCentavos, e.from, e.to, e.note), default: 0] += 1
+        }
+
         func resolve(_ raw: String, as role: Role) -> Account? {
             let name = raw.trimmingCharacters(in: .whitespaces)
             guard !name.isEmpty else { return nil }
@@ -158,7 +179,8 @@ enum CSV {
                 result.skippedLines.append(line); continue
             }
             let typeText = value(.type).lowercased()
-            let kind: EntryKind = typeText.hasPrefix("inc") ? .income : (typeText.hasPrefix("tra") ? .transfer : .expense)
+            let loan = typeText.hasPrefix("loan")
+            let kind: EntryKind = typeText.hasPrefix("inc") ? .income : (typeText.hasPrefix("tra") || loan ? .transfer : .expense)
 
             // Direction: explicit From/To columns, or her Account plus the other side (Item/Payee).
             var fromName = value(.from)
@@ -190,7 +212,15 @@ enum CSV {
 
             var note = value(.note)
             if note.isEmpty, map[.from] == nil, kind == .expense, to == nil { note = value(.other) }
-            context.insert(Entry(amountCentavos: abs(signed), kind: kind, date: date, from: from, to: to, note: note))
+            let k = key(date, kind, abs(signed), from, to, note)
+            if let n = already[k], n > 0 {
+                already[k] = n - 1
+                result.duplicates += 1
+                continue
+            }
+            let entry = Entry(amountCentavos: abs(signed), kind: kind, date: date, from: from, to: to, note: note)
+            entry.isLoan = loan
+            context.insert(entry)
             result.imported += 1
         }
         try? context.save()

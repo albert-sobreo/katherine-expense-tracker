@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 /// Add accounts. Used as onboarding step 2 and as the Accounts screen.
-/// People are added from the account form ("+ Person"); CSV and budget live in Settings.
+/// People are added here with "+ Person" or from the account form; CSV and budget live in Settings.
 struct AccountSetupPage: View {
     var isOnboarding = false
     var onDone: () -> Void
@@ -13,6 +13,7 @@ struct AccountSetupPage: View {
     @State private var formOwner: OwnerChoice?
     @State private var viewing: Account?
     @State private var editingPerson: Person?
+    @State private var addingPerson = false
 
     /// Wraps the owner so the form sheet can be shown for a specific person or for "pick one".
     struct OwnerChoice: Identifiable {
@@ -28,9 +29,23 @@ struct AccountSetupPage: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(isOnboarding ? "Add your accounts" : "Accounts")
-                            .font(.outfit(30, .bold))
-                        Text("Tap + to add one. For an account you manage for someone else, like Mama's, pick + Person in the form.")
+                        HStack(alignment: .center) {
+                            Text(isOnboarding ? "Add your accounts" : "Accounts")
+                                .font(.outfit(30, .bold))
+                            Spacer()
+                            if !isOnboarding {
+                                Button(action: onDone) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 16, weight: .semibold))
+                                        .frame(width: 36, height: 36)
+                                        .background(p.chip, in: .circle)
+                                }
+                                .buttonStyle(.plain)
+                                .keyboardShortcut(.cancelAction)
+                                .accessibilityLabel("Close")
+                            }
+                        }
+                        Text("Tap + to add one. For accounts you manage for someone else, like your brother's, add them with + Person first.")
                             .font(.outfit(15))
                             .foregroundStyle(p.muted)
                     }
@@ -41,8 +56,10 @@ struct AccountSetupPage: View {
                         onAddPayee: { formOwner = OwnerChoice(person: nil, payee: true) },
                         onAddLoan: { formOwner = OwnerChoice(person: nil, loan: true) },
                         onEdit: { viewing = $0 },
-                        onEditPerson: { editingPerson = $0 }
+                        onEditPerson: { editingPerson = $0 },
+                        onAddPerson: { addingPerson = true }
                     )
+
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 24)
@@ -72,6 +89,7 @@ struct AccountSetupPage: View {
         .sheet(item: $viewing) { account in EntriesView(account: account).frame(minWidth: 420, minHeight: 760) }
         #endif
         .sheet(item: $editingPerson) { person in PersonEditSheet(person: person) }
+        .sheet(isPresented: $addingPerson) { PersonSheet() }
     }
 }
 

@@ -12,6 +12,10 @@ struct SettingsView: View {
     @AppStorage(Budget.key) private var budget = 0
 
     @State private var showBudget = false
+    @State private var showAccounts = false
+    @State private var addingPerson = false
+    @State private var showHomeAccounts = false
+    @Query private var allAccounts: [Account]
     @State private var editingPerson: Person?
     @State private var showImporter = false
     @State private var exportDoc: CSVDocument?
@@ -26,20 +30,31 @@ struct SettingsView: View {
             header(p)
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    group("Accounts", p) {
+                        row("Accounts", "creditcard", sub: "Add, edit or delete accounts, payees and loans", p) {
+                            showAccounts = true
+                        }
+                    }
+
+                    group("Home", p) {
+                        let banks = allAccounts.filter { !$0.isPayee && !$0.isLoan }
+                        let shown = banks.filter(\.showOnHome).count
+                        row("Accounts on Home", "house", sub: shown == banks.count ? "All accounts" : "\(shown) of \(banks.count) accounts", p) {
+                            showHomeAccounts = true
+                        }
+                    }
+
                     group("Budget", p) {
                         row("Monthly budget", "target",
                             sub: budget > 0 ? Money.peso(budget) + " a month" : "Not set", p) { showBudget = true }
                     }
 
                     group("People", p) {
-                        if others.isEmpty {
-                            Text("Add someone from the account form with + Person, like Mama when you add her BDO.")
-                                .font(.outfit(13)).foregroundStyle(p.muted)
-                                .padding(14)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        row("Add person", "person.badge.plus", sub: "Someone whose accounts you handle, like your brother", p) {
+                            addingPerson = true
                         }
-                        ForEach(Array(others.enumerated()), id: \.element.id) { i, person in
-                            if i > 0 { divider(p) }
+                        ForEach(others) { person in
+                            divider(p)
                             let n = (person.accounts ?? []).count
                             row(person.name, "person", sub: n == 1 ? "1 account" : "\(n) accounts", p) {
                                 editingPerson = person
@@ -67,6 +82,12 @@ struct SettingsView: View {
         .foregroundStyle(p.fg)
         .background(p.bg)
         .sheet(isPresented: $showBudget) { BudgetSheet() }
+        .sheet(isPresented: $addingPerson) { PersonSheet() }
+        .sheet(isPresented: $showHomeAccounts) { HomeAccountsSheet() }
+        .sheet(isPresented: $showAccounts) {
+            AccountSetupPage(onDone: { showAccounts = false })
+                .presentationDragIndicator(.visible)
+        }
         .sheet(item: $editingPerson) { PersonEditSheet(person: $0) }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
             guard case .success(let url) = result else { return }

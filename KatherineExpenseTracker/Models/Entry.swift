@@ -19,6 +19,9 @@ final class Entry {
     var kindRaw: String = EntryKind.expense.rawValue
     var date: Date = Date()
     var note: String = ""
+    /// Transfers only: this money was lent or borrowed between Kath and the other account's owner.
+    /// It shows on the Loans screen under that person.
+    var isLoan: Bool = false
     var createdAt: Date = Date()
 
     var from: Account?

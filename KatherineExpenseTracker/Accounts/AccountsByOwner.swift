@@ -11,6 +11,8 @@ struct AccountsByOwner: View {
     var onEdit: (Account) -> Void = { _ in }
     /// Tapping a group's "Edit": rename, reorder or delete that person.
     var onEditPerson: (Person) -> Void = { _ in }
+    /// "+ Person" after the people groups. Nil hides it.
+    var onAddPerson: (() -> Void)? = nil
 
     @Environment(\.colorScheme) private var scheme
     @Query(sort: \Person.sortOrder) private var people: [Person]
@@ -78,6 +80,21 @@ struct AccountsByOwner: View {
                         .accessibilityLabel(person.isMe ? "Add one of my accounts" : "Add one of \(person.name)'s accounts")
                     }
                 }
+            }
+
+            if let onAddPerson {
+                // A new person gets their own group above Loans, with its own + tile.
+                Button(action: onAddPerson) {
+                    Label("Person", systemImage: "plus")
+                        .font(.outfit(12, .semibold))
+                        .tracking(1.4)
+                        .textCase(.uppercase)
+                        .padding(.horizontal, 16).frame(height: 38)
+                        .overlay(Capsule().strokeBorder(p.muted, style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 4)
+                .accessibilityLabel("Add person")
             }
 
             VStack(alignment: .leading, spacing: 6) {

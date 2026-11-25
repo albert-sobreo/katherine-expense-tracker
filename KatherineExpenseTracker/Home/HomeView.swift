@@ -23,6 +23,7 @@ struct HomeView: View {
     @State private var showLoans = false
     @State private var showSettings = false
     @State private var repeating: Entry?
+    @State private var viewingLoan: LoanLine.Ref?
     @AppStorage(Budget.key) private var budget = 0
     @Environment(\.openDetail) private var openDetail
     @Environment(\.detailRoute) private var detailRoute
@@ -79,8 +80,8 @@ struct HomeView: View {
 
     private var isThisMonth: Bool { Calendar.current.isDate(month, equalTo: .now, toGranularity: .month) }
     private var totals: MonthTotals { MonthTotals(entries: entries, month: month) }
-    private var balanceGroups: [RailGroup] { RailGroup.build(people: people, accounts: accounts) }
-    private var loans: [Account] { accounts.filter(\.isLoan) }
+    private var balanceGroups: [RailGroup] { RailGroup.build(people: people, accounts: accounts.filter(\.showOnHome)) }
+    private var loans: [LoanLine] { LoanLine.all(accounts: accounts, entries: entries) }
 
     /// The latest 5 entries that differ in type, amount, accounts or note, for "Repeat" on long-press.
     private var recentTemplates: [Entry] {
@@ -188,6 +189,7 @@ struct HomeView: View {
             }
         }
         .sheet(isPresented: $showSetup) { NeedsSetupSheet() }
+        .sheet(item: $viewingLoan) { LoanDetailView(ref: $0) }
         .sheet(isPresented: $showBudget) { BudgetSheet() }
         .sheet(isPresented: $showMonthSheet) {
             MonthPickerSheet(selection: Binding(get: { month }, set: { if let m = $0 { month = m } }),
@@ -428,8 +430,9 @@ struct HomeView: View {
 
     /// One tile per person Kath has a loan with, plus what's owed each way.
     private func loansRow(_ p: Palette) -> some View {
-        let owedToYou = loans.map(\.balanceCentavos).filter { $0 > 0 }.reduce(0, +)
-        let youOwe = -loans.map(\.balanceCentavos).filter { $0 < 0 }.reduce(0, +)
+        let lines = loans
+        let owedToYou = lines.map(\.balance).filter { $0 > 0 }.reduce(0, +)
+        let youOwe = -lines.map(\.balance).filter { $0 < 0 }.reduce(0, +)
         return VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
                 Text("LOANS").foregroundStyle(p.muted)
@@ -442,7 +445,15 @@ struct HomeView: View {
             .padding(.horizontal, 20)
             ScrollView(.horizontal) {
                 HStack(spacing: 0) {
-                    ForEach(loans) { a in tile(a, p) }
+                    ForEach(lines) { l in
+                        if l.person == nil, let t = l.tile {
+                            tile(t, p)
+                        } else {
+                            Button { viewingLoan = LoanLine.Ref(line: l) } label: { LoanLineTile(line: l) }
+                                .buttonStyle(.plain)
+                                .accessibilityHint("Show loan transfers")
+                        }
+                    }
                 }
                 .padding(.horizontal, 13)
                 .padding(.top, 4)
@@ -531,7 +542,12 @@ struct HomeView: View {
     }
 
     private func row(_ e: Entry, _ p: Palette) -> some View {
-        let other: Account? = e.kind == .income ? e.from : e.to
+        // Expenses take the color of the account paid from; income the payer's, transfers the destination's.
+        let other: Account? = switch e.kind {
+        case .expense: e.from ?? e.to
+        case .income: e.from
+        case .transfer: e.to
+        }
         let title: String
         let sub: String
         switch e.kind {
@@ -542,7 +558,7 @@ struct HomeView: View {
             title = e.from?.name ?? (e.note.isEmpty ? "Income" : e.note)
             sub = "Into \(describe(e.to))"
         case .transfer:
-            title = "Transfer"
+            title = e.loanPerson.map { "Loan · \($0.name)" } ?? "Transfer"
             sub = "\(describe(e.from)) to \(describe(e.to))"
         }
         let note = !e.note.isEmpty && title != e.note ? " · \(e.note)" : ""

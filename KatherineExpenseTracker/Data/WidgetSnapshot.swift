@@ -32,7 +32,7 @@ struct WidgetSnapshot: Codable, Equatable {
         let month = cal.dateInterval(of: .month, for: now)?.start ?? now
         let totals = MonthTotals(entries: entries, month: month)
         var byPayee: [String: (String, Int)] = [:]
-        for e in entries where e.kind == .expense && e.from?.isMine == true
+        for e in entries where e.countsAsExpense
             && cal.isDate(e.date, equalTo: month, toGranularity: .month) {
             let name = e.to?.name ?? (e.note.isEmpty ? "Other" : e.note)
             byPayee[name, default: (e.to?.colorHex ?? "#3F3F46", 0)].1 += e.amountCentavos

@@ -86,6 +86,8 @@ struct MonthPickerSheet: View {
         .background(p.bg)
         .presentationDetents([.height(allowsAllTime ? 360 : 300)])
         .presentationDragIndicator(.visible)
+        // No close button here (tap a month or swipe down), so Esc closes it on a Mac or iPad keyboard.
+        .background { Button("Close") { dismiss() }.keyboardShortcut(.cancelAction).hidden() }
         .onAppear { year = selection.map { cal.component(.year, from: $0) } ?? thisYear }
     }
 

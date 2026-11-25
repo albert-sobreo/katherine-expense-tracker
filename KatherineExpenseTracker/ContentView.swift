@@ -16,6 +16,12 @@ struct ContentView: View {
         }
         // Default for any text that doesn't set its own font, including system controls.
         .font(.outfit(17))
+        // Borderless text fields everywhere. iOS already draws them this way; on the Mac the default is a
+        // bordered box with a blue focus ring, which broke the big amount field.
+        .textFieldStyle(.plain)
+        #if os(macOS)
+        .focusEffectDisabled()
+        #endif
         .task { Setup.me(in: context) }
     }
 }
