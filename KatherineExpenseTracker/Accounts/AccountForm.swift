@@ -171,12 +171,29 @@ struct AccountForm: View {
         .buttonStyle(.plain)
         .padding(.top, 6)
         .confirmationDialog("Delete \(editing?.name ?? "this")?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
-                if let editing { context.delete(editing) }
-                dismiss()
+            let entries = (editing?.outgoing ?? []) + (editing?.incoming ?? [])
+            if entries.isEmpty {
+                Button("Delete", role: .destructive) {
+                    if let editing { context.delete(editing) }
+                    dismiss()
+                }
+            } else {
+                Button("Delete account and its \(entries.count) \(entries.count == 1 ? "entry" : "entries")", role: .destructive) {
+                    for e in entries { context.delete(e) }
+                    if let editing { context.delete(editing) }
+                    try? context.save()
+                    dismiss()
+                }
+                Button("Delete account, keep entries", role: .destructive) {
+                    if let editing { context.delete(editing) }
+                    dismiss()
+                }
             }
         } message: {
-            Text("Its entries stay, but they won't show this account anymore.")
+            let n = (editing?.outgoing?.count ?? 0) + (editing?.incoming?.count ?? 0)
+            Text(n == 0
+                 ? "It has no entries."
+                 : "It has \(n) \(n == 1 ? "entry" : "entries"). Deleting them also changes the balances of the other accounts in them. Keeping them leaves rows with no account, and past months' totals may drop.")
         }
     }
 
@@ -343,7 +360,11 @@ struct AccountForm: View {
     /// What's in the account right now (or owed, for a card), so balances start from the real number.
     private func openingRow(_ p: Palette) -> some View {
         HStack {
-            Text(isLoan ? "Amount now" : (kind == .credit ? "Owed now" : "Balance now")).font(.outfit(14, .medium))
+            // New: what's there today. Editing: entries are already added on top, so this is the starting amount.
+            Text(editing == nil
+                 ? (isLoan ? "Amount now" : (kind == .credit ? "Owed now" : "Balance now"))
+                 : (isLoan ? "Starting amount" : (kind == .credit ? "Owed at start" : "Starting balance")))
+                .font(.outfit(14, .medium))
             TextField("₱0", text: $opening)
                 .font(.barlow(19))
                 .multilineTextAlignment(.trailing)

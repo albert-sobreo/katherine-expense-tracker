@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 
-/// The things Kath rarely touches: monthly budget, people, and CSV import/export.
+/// The things rarely touched: accounts, Home accounts, budget, people, CSV, and backup and restore.
 struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
@@ -21,6 +21,12 @@ struct SettingsView: View {
     @State private var exportDoc: CSVDocument?
     @State private var showExporter = false
     @State private var importMessage: String?
+    @State private var alertTitle = "Import"
+    @State private var backupDoc: BackupDocument?
+    @State private var showBackupExporter = false
+    @State private var showBackupImporter = false
+    /// A backup read from a file, waiting for the user to confirm replacing everything.
+    @State private var pendingRestore: Backup?
 
     private var others: [Person] { people.filter { !$0.isMe } }
 
@@ -73,14 +79,60 @@ struct SettingsView: View {
                             showExporter = true
                         }
                     }
+
+                    group("Backup", p) {
+                        row("Back up everything", "externaldrive", sub: "Accounts, people, balances, entries and budget in one file", p) {
+                            if let data = try? Backup.make(context: context, budget: budget).encoded() {
+                                backupDoc = BackupDocument(data: data)
+                                showBackupExporter = true
+                            }
+                        }
+                        divider(p)
+                        row("Restore from backup", "arrow.counterclockwise", sub: "Replaces everything in the app with the file", p) {
+                            showBackupImporter = true
+                        }
+                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 30)
             }
             .scrollIndicators(.hidden)
+            // Backup's file sheets live here: one view can only carry one importer and one exporter.
+            .fileExporter(isPresented: $showBackupExporter, document: backupDoc, contentType: .json,
+                          defaultFilename: "Katherine backup \(Date.now.formatted(.iso8601.year().month().day()))") { result in
+                if case .success = result {
+                    alertTitle = "Backup saved"
+                    importMessage = "Keep the file somewhere safe, like iCloud Drive. Restore from backup brings everything back."
+                }
+            }
+            .fileImporter(isPresented: $showBackupImporter, allowedContentTypes: [.json]) { result in
+                guard case .success(let url) = result else { return }
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                guard let data = try? Data(contentsOf: url), let backup = try? Backup.decode(data) else {
+                    alertTitle = "Restore"
+                    importMessage = "That file isn't a backup from this app."
+                    return
+                }
+                pendingRestore = backup
+            }
         }
         .foregroundStyle(p.fg)
         .background(p.bg)
+        .confirmationDialog("Replace everything with this backup?",
+                            isPresented: Binding(get: { pendingRestore != nil }, set: { if !$0 { pendingRestore = nil } }),
+                            titleVisibility: .visible) {
+            Button("Replace everything", role: .destructive) {
+                guard let backup = pendingRestore else { return }
+                backup.restore(into: context)
+                budget = backup.budget
+                pendingRestore = nil
+                alertTitle = "Restored"
+                importMessage = "Everything is back as of the backup: \(backup.summary)."
+            }
+        } message: {
+            Text("Backup: \(pendingRestore?.summary ?? ""). Everything in the app now is deleted first, on all devices using this iCloud account. Back up first if you might need it.")
+        }
         .sheet(isPresented: $showBudget) { BudgetSheet() }
         .sheet(isPresented: $addingPerson) { PersonSheet() }
         .sheet(isPresented: $showHomeAccounts) { HomeAccountsSheet() }
@@ -94,15 +146,17 @@ struct SettingsView: View {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
             guard let data = try? Data(contentsOf: url) else {
+                alertTitle = "Import"
                 importMessage = "Couldn't open that file."
                 return
             }
             let text = String(data: data, encoding: .utf8) ?? String(decoding: data, as: UTF8.self)
+            alertTitle = "Import"
             importMessage = CSV.importText(text, into: context).summary
         }
         .fileExporter(isPresented: $showExporter, document: exportDoc, contentType: .commaSeparatedText,
                       defaultFilename: "Budget \(Date.now.formatted(.iso8601.year().month().day()))") { _ in }
-        .alert("Import", isPresented: Binding(get: { importMessage != nil }, set: { if !$0 { importMessage = nil } })) {
+        .alert(alertTitle, isPresented: Binding(get: { importMessage != nil }, set: { if !$0 { importMessage = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(importMessage ?? "")
