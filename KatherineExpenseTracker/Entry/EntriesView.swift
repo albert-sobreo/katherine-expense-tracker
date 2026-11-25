@@ -146,6 +146,7 @@ struct EntriesView: View {
                         .background(p.chip, in: .circle)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
             }
             Spacer()

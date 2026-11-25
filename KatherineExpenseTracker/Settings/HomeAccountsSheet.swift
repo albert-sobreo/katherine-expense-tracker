@@ -23,6 +23,7 @@ struct HomeAccountsSheet: View {
                         .background(p.chip, in: .circle)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
             }
             .padding(.horizontal, 20)

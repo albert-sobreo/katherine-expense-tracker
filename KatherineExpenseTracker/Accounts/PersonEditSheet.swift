@@ -25,6 +25,7 @@ struct PersonEditSheet: View {
         VStack(spacing: 16) {
             HStack {
                 Button("Cancel") { if dirty { askDiscard = true } else { dismiss() } }
+                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.plain)
                     .font(.outfit(15, .semibold))
                     .padding(.horizontal, 14).frame(height: 34)

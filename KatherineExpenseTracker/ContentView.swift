@@ -5,6 +5,8 @@ import SwiftData
 struct ContentView: View {
     @AppStorage("didFinishOnboarding") private var didFinishOnboarding = false
     @Environment(\.modelContext) private var context
+    /// An expense another app (DueDay) asked to log through a katherine:// link.
+    @State private var logRequest: LogRequest?
 
     var body: some View {
         Group {
@@ -23,6 +25,17 @@ struct ContentView: View {
         .focusEffectDisabled()
         #endif
         .task { Setup.me(in: context) }
+        .onOpenURL { url in
+            guard didFinishOnboarding, let request = LogRequest(url: url) else { return }
+            logRequest = request
+        }
+        .sheet(item: $logRequest) { request in
+            #if os(macOS)
+            EntryView(request: request).frame(minWidth: 420, minHeight: 760)
+            #else
+            EntryView(request: request)
+            #endif
+        }
     }
 }
 

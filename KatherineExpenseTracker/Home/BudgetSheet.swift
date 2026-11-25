@@ -33,6 +33,8 @@ struct BudgetSheet: View {
                         .background(p.chip, in: .circle)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
+                .accessibilityLabel("Close")
             }
             Text("How much you plan to spend each month. Home shows how much is left.")
                 .font(.outfit(14)).foregroundStyle(p.muted)

@@ -50,6 +50,7 @@ struct LoanDetailView: View {
                         .background(p.chip, in: .circle)
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
                 Spacer()
                 Text(ref.name).font(.outfit(17, .bold)).lineLimit(1)

@@ -19,6 +19,7 @@ struct PersonSheet: View {
         VStack(spacing: 18) {
             HStack {
                 Button("Cancel") { if trimmed.isEmpty { dismiss() } else { askDiscard = true } }
+                    .keyboardShortcut(.cancelAction)
                     .buttonStyle(.plain)
                     .font(.outfit(15, .semibold))
                     .padding(.horizontal, 14).frame(height: 34)

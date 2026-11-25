@@ -70,6 +70,8 @@ struct AccountForm: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if editing == nil { typeSwitch(p) }
+                    // Room for the preview tile's glow, so it isn't cut off under the header.
+                    if editing != nil { Color.clear.frame(height: 0) }
                     if type == .bank {
                         ownerRow(p)
                         kindSwitch(p)
@@ -132,6 +134,7 @@ struct AccountForm: View {
     private func header(_ p: Palette) -> some View {
         HStack {
             Button("Cancel") { if dirty { askDiscard = true } else { dismiss() } }
+                .keyboardShortcut(.cancelAction)
                 .buttonStyle(.plain)
                 .font(.outfit(15, .semibold))
                 .padding(.horizontal, 14).frame(height: 34)

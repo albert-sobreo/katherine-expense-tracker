@@ -10,6 +10,8 @@ struct EntryView: View {
     var template: Entry? = nil
     /// Opened from an account's transactions: start with that account picked.
     var preselect: Account? = nil
+    /// Opened from another app's link (DueDay after a bill is paid): an expense filled in, ready to save.
+    var request: LogRequest? = nil
 
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -40,6 +42,9 @@ struct EntryView: View {
     @State private var showWheel = false
     /// Transfer between Kath and someone else's account: lent or borrowed, shown on the Loans screen.
     @State private var isLoan = false
+    /// From a link whose payee isn't in your list yet: added as a payee when you save.
+    @State private var newPayeeName: String?
+    @AppStorage(LinkedMethods.storageKey) private var linkedMethodsJSON = ""
     /// Width of the typed amount at full size, and the width the field has. Used to shrink the amount to fit.
     @State private var amountNaturalWidth: CGFloat = 0
     @State private var amountFieldWidth: CGFloat = 0
@@ -121,6 +126,7 @@ struct EntryView: View {
                     AccountRail(label: labels.to, groups: toGroups, selection: $toID, optional: kind == .expense) {
                         formChoice = .init(person: nil, payee: kind == .expense)
                     }
+                    if let name = newPayeeName, kind == .expense, toID == nil { newPayeeHint(name, p) }
                     if let person = loanOther?.owner { loanToggle(person, p).id("loanToggle") }
                 }
                 .padding(.horizontal, 16)
@@ -147,8 +153,9 @@ struct EntryView: View {
                         .background(p.chip, in: .rect(cornerRadius: 18))
                 }
                 .buttonStyle(.plain)
+                .keyboardShortcut(.cancelAction)
                 .accessibilityLabel("Close")
-                PrimaryButton(title: editing == nil ? "Save & new" : "Save", enabled: canSave, action: save)
+                PrimaryButton(title: editing == nil && request == nil ? "Save & new" : "Save", enabled: canSave, action: save)
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -175,6 +182,8 @@ struct EntryView: View {
                 load(template)
                 date = .now
                 amountFocused = true
+            } else if let request {
+                fill(from: request)
             } else {
                 applyDefaults()
                 if let preselect { pick(preselect) }
@@ -386,7 +395,7 @@ struct EntryView: View {
                     .font(.outfit(12)).foregroundStyle(p.muted)
             }
         }
-        .tint(p.fg)
+        .toggleStyle(.app)
         .padding(.horizontal, 16)
         .frame(height: 62)
         .background(p.card, in: .rect(cornerRadius: 18))
@@ -623,6 +632,62 @@ struct EntryView: View {
         }
     }
 
+    /// Fills an expense from another app's link. The payee and account are matched by name, loosely;
+    /// the account picked for a payment method is remembered on save.
+    private func fill(from r: LogRequest) {
+        if kind != .expense {
+            skipDefaults = true
+            kind = .expense
+        }
+        applyDefaults()
+        if r.centavos > 0 {
+            let c = r.centavos
+            amountText = Self.sanitize(c % 100 == 0 ? String(c / 100) : String(format: "%.2f", Double(c) / 100))
+        }
+        date = r.date
+        note = r.note
+        showNote = !r.note.isEmpty
+        if !r.payee.isEmpty {
+            let payees = accounts.filter(\.isPayee)
+            if let match = NameMatch.best(r.payee, in: payees, by: \.name) {
+                toID = match.persistentModelID
+            } else {
+                newPayeeName = r.payee
+            }
+        }
+        if let a = LinkedMethods.account(for: r.method, in: mine, json: linkedMethodsJSON) {
+            fromID = a.persistentModelID
+        }
+    }
+
+    private func newPayeeHint(_ name: String, _ p: Palette) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "plus.circle.fill").font(.system(size: 18))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name).font(.outfit(14, .semibold)).lineLimit(1)
+                Text("New payee. Added when you save.").font(.outfit(12)).foregroundStyle(p.muted)
+            }
+            Spacer(minLength: 8)
+            Button("Don't add") { withAnimation { newPayeeName = nil } }
+                .font(.outfit(13, .semibold))
+                .buttonStyle(.plain)
+                .foregroundStyle(p.muted)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(p.chip, in: .rect(cornerRadius: 14))
+        .padding(.top, -10)
+    }
+
+    /// Adds the payee a link named, matching a known biller's color when there is one.
+    private func addNewPayee(_ name: String) -> Account {
+        let hex = BankPreset.payees.first { NameMatch.score($0.name, name) >= 0.85 }?.hex ?? "#52525B"
+        let a = Account(name: name, colorHex: hex, isPayee: true)
+        a.sortOrder = (accounts.map(\.sortOrder).max() ?? 0) + 1
+        context.insert(a)
+        return a
+    }
+
     private func account(_ id: PersistentIdentifier?) -> Account? {
         guard let id else { return nil }
         return accounts.first { $0.persistentModelID == id }
@@ -673,14 +738,26 @@ struct EntryView: View {
             return
         }
         let amount = centavos
+        var payee = account(toID)
+        if let request {
+            if payee == nil, kind == .expense, let name = newPayeeName { payee = addNewPayee(name) }
+            if let fromID, kind == .expense {
+                linkedMethodsJSON = LinkedMethods.saving(fromID, for: request.method, into: linkedMethodsJSON)
+            }
+        }
         rememberAccounts()
         savedCount += 1
         let entry = Entry(amountCentavos: amount, kind: kind, date: date,
-                          from: account(fromID), to: account(toID),
+                          from: account(fromID), to: payee,
                           note: note.trimmingCharacters(in: .whitespacesAndNewlines))
         entry.isLoan = isLoan && loanOther != nil
         context.insert(entry)
         try? context.save()
+        if request != nil {
+            // A one-off from another app: done, back to where you were.
+            dismiss()
+            return
+        }
 
         let peso = (Double(amount) / 100).formatted(.number.precision(.fractionLength(2)))
         withAnimation(.spring(response: 0.35)) { toast = "Saved ₱\(peso) · ready for the next one" }
