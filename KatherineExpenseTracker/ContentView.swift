@@ -7,6 +7,10 @@ struct ContentView: View {
     @Environment(\.modelContext) private var context
     /// An expense another app (DueDay) asked to log through a katherine:// link.
     @State private var logRequest: LogRequest?
+    /// The "New Entry" shortcut asked for the entry screen.
+    @State private var showNewEntry = false
+    @Query private var accounts: [Account]
+    private let router = IntentRouter.shared
 
     var body: some View {
         Group {
@@ -28,6 +32,22 @@ struct ContentView: View {
         .onOpenURL { url in
             guard didFinishOnboarding, let request = LogRequest(url: url) else { return }
             logRequest = request
+        }
+        // Siri phrases that name an account ("Log a GCash expense in Kuarta") need the current names.
+        .task(id: accounts.map(\.name).joined(separator: "|")) {
+            KuartaShortcuts.updateAppShortcutParameters()
+        }
+        .onChange(of: router.wantsNewEntry, initial: true) { _, wants in
+            guard wants else { return }
+            router.wantsNewEntry = false
+            if didFinishOnboarding && logRequest == nil { showNewEntry = true }
+        }
+        .sheet(isPresented: $showNewEntry) {
+            #if os(macOS)
+            EntryView().frame(minWidth: 420, minHeight: 760)
+            #else
+            EntryView()
+            #endif
         }
         .sheet(item: $logRequest) { request in
             #if os(macOS)

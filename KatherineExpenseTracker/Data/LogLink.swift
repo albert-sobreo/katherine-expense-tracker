@@ -8,6 +8,8 @@ struct LogRequest: Identifiable, Equatable {
     let id = UUID()
     var payee: String
     var centavos: Int
+    /// The link had an amount, even if it's zero (a bill that came out free).
+    var hasAmount: Bool
     var date: Date
     /// How it was paid, as the other app names it ("GCash", "Bank transfer", "BPI Card"...).
     var method: String
@@ -24,15 +26,17 @@ struct LogRequest: Identifiable, Equatable {
         payee = value("payee")
         method = value("method")
         note = value("note")
-        let amount = Decimal(string: value("amount").replacingOccurrences(of: ",", with: ""),
-                             locale: Locale(identifier: "en_US_POSIX")) ?? 0
+        let parsed = Decimal(string: value("amount").replacingOccurrences(of: ",", with: ""),
+                             locale: Locale(identifier: "en_US_POSIX"))
+        hasAmount = parsed != nil
+        let amount = parsed ?? 0
         centavos = Int((NSDecimalNumber(decimal: amount).doubleValue * 100).rounded())
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.calendar = Calendar(identifier: .gregorian)
         f.dateFormat = "yyyy-MM-dd"
         date = f.date(from: value("date")).map { Calendar.current.date(bySettingHour: 12, minute: 0, second: 0, of: $0) ?? $0 } ?? .now
-        if payee.isEmpty && centavos <= 0 { return nil }
+        if payee.isEmpty && !hasAmount { return nil }
     }
 }
 

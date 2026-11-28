@@ -94,7 +94,8 @@ struct EntryView: View {
     }
 
     private var canSave: Bool {
-        guard centavos > 0 else { return false }
+        // Zero is allowed (a bill that came out free); an empty amount isn't.
+        guard !amountText.isEmpty, centavos >= 0 else { return false }
         switch kind {
         case .expense: return fromID != nil
         case .income: return toID != nil
@@ -640,7 +641,7 @@ struct EntryView: View {
             kind = .expense
         }
         applyDefaults()
-        if r.centavos > 0 {
+        if r.hasAmount {
             let c = r.centavos
             amountText = Self.sanitize(c % 100 == 0 ? String(c / 100) : String(format: "%.2f", Double(c) / 100))
         }

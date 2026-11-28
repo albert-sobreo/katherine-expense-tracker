@@ -99,7 +99,7 @@ struct SettingsView: View {
             .scrollIndicators(.hidden)
             // Backup's file sheets live here: one view can only carry one importer and one exporter.
             .fileExporter(isPresented: $showBackupExporter, document: backupDoc, contentType: .json,
-                          defaultFilename: "Katherine backup \(Date.now.formatted(.iso8601.year().month().day()))") { result in
+                          defaultFilename: "Kuarta backup \(Date.now.formatted(.iso8601.year().month().day()))") { result in
                 if case .success = result {
                     alertTitle = "Backup saved"
                     importMessage = "Keep the file somewhere safe, like iCloud Drive. Restore from backup brings everything back."
