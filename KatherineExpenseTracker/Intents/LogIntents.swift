@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import SwiftData
 
 /// "Log an expense in Kuarta". Saves right away; Siri asks for the amount and account if missing.
 nonisolated struct LogExpenseIntent: AppIntent {

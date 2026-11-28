@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import AppIntents
 
 /// Shows onboarding on first launch, then Home.
 struct ContentView: View {

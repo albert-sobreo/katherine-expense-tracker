@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import SwiftData
 
 /// "What's my balance in Kuarta": the net balance from Home.
 nonisolated struct GetBalanceIntent: AppIntent {

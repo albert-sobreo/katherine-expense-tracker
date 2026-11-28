@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import SwiftData
 
 /// A bank, e-wallet, card or loan, as Siri and Shortcuts see it. Yours first, then other people's.
 nonisolated struct AccountEntity: AppEntity, Identifiable {
